@@ -1,0 +1,48 @@
+```{r}
+library(foreign)
+library(tidyverse)
+library(ggplot2)
+library(haven)
+library(readstata13)
+```
+
+```{r}
+child <- read.dta13("project_data/ecfps2022child_202410.dta")
+fam_conf <- read.dta13("project_data/ecfps2022famconf_202410.dta")
+fam_econ <- read.dta13("project_data/ecfps2022famecon_202410.dta")
+persons <- read.dta13("project_data/ecfps2022person_202410.dta")
+```
+
+```{r}
+dat<-persons %>%
+  filter(cesd8 > -8) %>%
+  filter(!is.na(cesd8))
+
+dat$cesd8 <- dat$cesd8 - 8
+```
+
+```{r}
+dat %>%
+  group_by(cid22) %>%
+  summarize(n_counties = n_distinct(countyid22)) %>%
+  filter(n_counties > 1)
+
+dat %>%
+  group_by(fid22) %>%
+  summarize(n_communities = n_distinct(cid22)) %>%
+  filter(n_communities > 1)
+
+dat %>%
+  group_by(countyid22) %>%
+  summarize(n_provinces = n_distinct(provcd22)) %>%
+  filter(n_provinces > 1)
+```
+
+```{r}
+nrow(dat)
+length(unique(dat$fid22))
+length(unique(dat$cid22))
+length(unique(dat$provcd22))
+mean(dat$cesd8)
+sd(dat$cesd8)
+```
