@@ -1,0 +1,1 @@
+This is an RMarkdown File for any initial EDA we're doing. I think the cleaning is going ot take a lot. 
