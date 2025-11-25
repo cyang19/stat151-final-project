@@ -1,16 +1,18 @@
 ---
-title: "Final Project – EDA & Preliminary Results"
-author: "Claire Yang, Saman De Silva, & Hans Elasri"
-date: "`r format(Sys.Date())`"
+title: ""
+author: ""
+date: ""
 output: pdf_document
 header-includes:
   - \usepackage{amsmath}
   - \usepackage{bm}
-
 geometry: margin=1in
 fontsize: 12pt
 linestretch: 1
 ---
+**Final Project – EDA & Preliminary Results**  
+Claire Yang, Saman De Silva, & Hans Elasri  
+`r format(Sys.Date())`
 ```{r setup, include=FALSE}
 library(knitr)
 knitr::opts_chunk$set(
@@ -19,7 +21,6 @@ knitr::opts_chunk$set(
   warning = FALSE
 )
 ```
-
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 # libraries for the project are here
 library(tidyverse)
@@ -32,13 +33,10 @@ library(broom.mixed)
 library(gt)
 library(dplyr)
 ```
-
-
 ```{r}
 # loading in cleaned data
 dat <- read_csv("data/cfps2022_clean_persons.csv")
 ```
-
 ## 1. Background & Primary Research Questions
 In this project, we use the 2022 wave of the China Family Panel Survey (CFPS) to study how adults' perceived income satisfaction, perceived income relative to others, and perceived social status are related to depressive symptoms, as measured by the CES-D8 scale. Our primary research questions are: (1) Are higher levels of subjective socioeconomic status associated with lower depression scores, after adjusting for demographic and household characteristics, and if so is there an interactive effect between the subjective scores? (2) How much of the variation in depression occurs between individuals versus between families, communities, and counties? and (3) To what extent to these associations remain after controlling for proxies of socioeconomic status such as education, employment status, and household composition?
 
@@ -56,13 +54,11 @@ Our data come from the China Family Panel Study (CFPS) 2022, a nationally repres
 
 
 ## 6. Mathmatical Model
-Our model has four levels of clustering indexed as follows:
-\begin{itemize}
-  \item $i$: individuals
-  \item $h$: households/families
-  \item $c$: communities
-  \item $k$: counties
-\end{itemize}
+Our model has four clustered levels: 
+$i$ = individuals, 
+$h$ = households/families, 
+$c$ = communities, 
+$k$ = counties.
 Our primary outcome variable is a (0-24) depression score: $Y_{ihck}$. \newline
 There are three primary predictors of interest (all grand mean centered Likert scores):
 \begin{itemize}
@@ -70,10 +66,9 @@ There are three primary predictors of interest (all grand mean centered Likert s
   \item Perception of Relative Income: $IR_{ij}^* = income\_rel_{ij} - \overline{income\_rel}$
   \item Perception of Relative Social Status: $IS_{ij}^* = status\_rel{ij} - \overline{status\_rel}$
 \end{itemize}
-Let
 \begin{itemize}
-  \item $\bm{X}_{ihck}$ be a column vector of control variables, mostly level 1 (e.g. age, gender, ethnicity, rural/urban, CCP party member, retired, pension, etc)
-  \item $\bm{\delta}$ is the corresponding vector of fixed effect coefficients
+  \item Let $\bm{X}_{ihck}$ be a column vector of control variables, mostly level 1 (e.g. age, gender, ethnicity, rural/urban, CCP party member, retired, pension, etc)
+  \item Let $\bm{\delta}$ is the corresponding vector of fixed effect coefficients
 \end{itemize}
 The multilevel model is then as follows:\newline
 Level 1 (Individual):
