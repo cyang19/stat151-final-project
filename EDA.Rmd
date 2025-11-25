@@ -47,7 +47,14 @@ Our data has these people nested among 10,558 families in 3,095 communities in 1
 ## 3. EDA Plots
 
 ```{r}
-dat_f <- filter(dat, `2020_employment` > 0 )
+dat_f <- dat %>% 
+  filter(reason_unemployed %in% c(-8, 5, 6, 8), 
+         age > 18) %>% 
+  mutate(unemployment_ind = case_when(
+    reason_unemployed == -8 ~ 0,
+                    TRUE    ~ 1
+  ) )
+
 
 ```
 
