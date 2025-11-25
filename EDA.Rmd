@@ -42,7 +42,14 @@ Our raw data contains $n=27,001$ observations of person-level data nested in fam
 To clean our dataset we remove any observation for which we do not have an outcome variable (mental health) which limits our observations to $n=23,041$. The outcome is reported on the scale (0,24) where greater values indicated a higher likelihood of depression.
 
 Our data has these people nested among 10,558 families in 3,095 communities in 1,039 counties in 31 provinces. Families and communities are not perfectly collinear so we must examine their cross-effects.
+
+
 ## 3. EDA Plots
+
+```{r}
+dat_f <- filter(dat, `2020_employment` > 0 )
+
+```
 
 
 ## 4. Variance Decomposition
