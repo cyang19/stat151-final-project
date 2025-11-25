@@ -19,20 +19,15 @@ dat <- persons %>%
   transmute(
     person_id     = pid,
     family_id     = fid22,
-    # you still have older family IDs (fid20,...), but we stick to 2022
     community_id  = cid22,
     county_id     = countyid22,
     province_id   = provcd22,
     
-    # survey weights
-    wt_cross      = rswt_natcs22n,
-    wt_panel      = rswt_natpn1022n,
-    
     # core demographics
     age           = fix_missing(age),
     gender_raw    = fix_missing(gender),
-    ethnicity     = fix_missing(minzu),
-    hukou         = fix_missing(huk),
+    ethnicity_raw = fix_missing(minzu),
+    hukou_raw     = fix_missing(huk),
     urban_raw     = fix_missing(urban22),
     
     # household / family
@@ -57,15 +52,13 @@ dat <- persons %>%
     # cognitive-ish measures
     wordlist_raw  = fix_missing(wordlist),
     mathlist_raw  = fix_missing(mathlist),
-    
-    # subjective SES (home environment score)
-    ses14_raw     = fix_missing(ses14),
+    # ses14_raw DROPPED – we won’t carry it forward
     
     # interview timing
     interview_year  = fix_missing(cyear),
     interview_month = fix_missing(cmonth),
     
-    # employment status (EMPLOY variable in raw data)
+    # employment status
     employ_raw    = fix_missing(employ),
     
     # SES variables of interest
@@ -73,12 +66,11 @@ dat <- persons %>%
     qn8011        = qn8011,  # relative income
     qn8012        = qn8012,  # relative status
     
-    # depression (CES-D8) - should be in persons file
+    # depression (CES-D8)
     cesd8_raw     = cesd8
   )
 
 ## ---- clean SES + depression ----
-
 dat <- dat %>%
   mutate(
     # recode SES missing / “non-substantive” responses
@@ -92,7 +84,6 @@ dat <- dat %>%
   )
 
 ## ---- clean/label categorical variables ----
-
 dat <- dat %>%
   mutate(
     # gender: CFPS usually 1 = male, 2 = female
@@ -102,7 +93,13 @@ dat <- dat %>%
       TRUE ~ NA_character_
     ),
     
-    # urban: 1 urban, 0 rural (check documentation if needed)
+    # ethnicity: 1 = Han, others / NA = 0
+    ethnicity_han = ifelse(ethnicity_raw == 1, 1, 0),
+    
+    # hukou: 1 = rural/agricultural hukou, others / NA = 0
+    hukou_rural = ifelse(hukou_raw == 1, 1, 0),
+    
+    # urban: 1 urban, 0 rural
     urban = case_when(
       urban_raw == 1 ~ 1,
       urban_raw == 0 ~ 0,
@@ -130,8 +127,8 @@ dat <- dat %>%
       TRUE ~ NA_real_
     ),
     
-    # employment status
-    # EMPLOY: 1 = employed, 0 = unemployed, 3 = out of labor force, negatives = not applicable / missing
+    # employment status (for reference)
+    # EMPLOY: 1 = employed, 0 = unemployed, 3 = out of labor force
     employ_status = case_when(
       employ_raw == 1 ~ "employed",
       employ_raw == 0 ~ "unemployed",
@@ -140,11 +137,40 @@ dat <- dat %>%
     )
   )
 
+## ---- fix structural NAs: convert skipped items into real zeros ----
+dat <- dat %>%
+  mutate(
+    # Party membership: missing = not a party member
+    party_member = ifelse(is.na(party_member), 0, party_member),
+    
+    # Retired: missing = not retired
+    retired = ifelse(is.na(retired), 0, retired),
+    
+    # Pension recipient: missing = no pension
+    pension = ifelse(is.na(pension), 0, pension),
+    
+    # Gender: if gender still NA but gender_raw exists, call it female
+    gender = ifelse(is.na(gender) & !is.na(gender_raw),
+                    "female", gender),
+    
+    # Handedness: missing = right-handed
+    handedness = ifelse(is.na(handedness), "right", handedness),
+    
+    # Smoking age: missing = never smoked (0)
+    smoke_age = ifelse(is.na(smoke_age), 0, smoke_age)
+  )
+
+## ---- drop invalid IDs (-9) ----
+dat <- dat %>%
+  filter(
+    !is.na(person_id), person_id > 0,
+    !is.na(family_id), family_id > 0,
+    !is.na(community_id), community_id > 0,
+    !is.na(county_id), county_id > 0,
+    !is.na(province_id), province_id > 0
+  )
+
 ## ---- restrict to analytic sample ----
-# For now: 
-#  - valid depression score
-#  - valid SES measures
-#  - age >= 18 (adult sample)
 clean_dat <- dat %>%
   filter(
     !is.na(cesd8),
@@ -155,14 +181,10 @@ clean_dat <- dat %>%
     age >= 18
   )
 
-## ---- optional: select final columns & rename nicely ----
 clean_dat <- clean_dat %>%
   select(
     # IDs & geography
     person_id, family_id, community_id, county_id, province_id,
-    
-    # weights
-    wt_cross, wt_panel,
     
     # outcome
     cesd8,
@@ -171,7 +193,7 @@ clean_dat <- clean_dat %>%
     income_satis, income_rel, status_rel,
     
     # demographics
-    age, gender, ethnicity, hukou, urban,
+    age, gender, ethnicity_han, hukou_rural, urban,
     party_member, retired, pension,
     
     # family / household
@@ -179,7 +201,7 @@ clean_dat <- clean_dat %>%
     
     # cognition / baseline SES
     edu_last_raw, edu_update,
-    wordlist_raw, mathlist_raw, ses14_raw,
+    wordlist_raw, mathlist_raw,
     
     # employment
     employ_status,
@@ -193,7 +215,7 @@ clean_dat <- clean_dat %>%
 
 ## ---- write out cleaned data ----
 write.csv(clean_dat,
-          "data/CFPS_2022/cfps2022_clean_persons.csv",
+          "data/cfps2022_clean_persons.csv",
           row.names = FALSE)
 
 # Quick sanity check
