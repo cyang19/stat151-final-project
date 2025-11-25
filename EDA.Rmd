@@ -36,8 +36,12 @@ dat <- read_csv("data/cleaned-data.csv")
 asdf asdf asdf
 
 ## 2. Data Sources & Structure
-asdf asdf asdf 
+<!-- this needs more context; i.e like where is this data from -->
+Our raw data contains $n=27,001$ observations of person-level data nested in families, communities, and provinces. The data source is the China Family Panel Survey (CFPS) 2022 results which surveyed families throughout China on many outcomes. Our variable of interest is individuals' self-reported CESD-8 scores which measure mental well-being.
 
+To clean our dataset we remove any observation for which we do not have an outcome variable (mental health) which limits our observations to $n=23,041$. The outcome is reported on the scale (0,24) where greater values indicated a higher likelihood of depression.
+
+Our data has these people nested among 10,558 families in 3,095 communities in 1,039 counties in 31 provinces. Families and communities are not perfectly collinear so we must examine their cross-effects.
 ## 3. EDA Plots
 
 
