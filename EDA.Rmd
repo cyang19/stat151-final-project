@@ -47,73 +47,13 @@ Our data come from the China Family Panel Study (CFPS) 2022, a nationally repres
 
 ## 3. EDA Plots
 
-```{r}
-set.seed(120)  
+See Appendix A.
 
-sample_cty <- dat %>%
-  distinct(county_id) %>%
-  slice_sample(n = 20)
+## 4. & 5. Variance Decomposition, Data Trends
 
-dat_samplecty <- dat %>%
-  filter(county_id %in% sample_cty$county_id)  %>% 
-  group_by(county_id) %>%
-  filter(n() > 1) %>%
-  ungroup()
+From our visualizations (see: Appendix A), we observe that there appears to be a negative relationship between CESD8 Depression scores (where higher indicates more depressive symptoms) and perceived income status, perceived social status, and personal income satisfaction (where higher indicates higher status/satisfcation).  This gives justification to our original question of how these three factors are related to mental health outcomes, and shows that from a completely pooled level, there is a relationship, and in particular it appears to be strongest by income satisfaction. Our boxplot for CESD Score for 20 Randomly Selected County Clusters also gives justification for the need for mutlilevel models, as we see that even on the county level, there is a large amount of variation (and also different sample sizes) in the CESD8 scores (and this is true for the family and community level, although the plots are not shown). 
 
-```
-
-```{r}
-
-library(patchwork)
-
-p1 <- ggplot(dat, aes(x = factor(income_satis), y = cesd8)) +
-  geom_boxplot() +
-  labs(x = "Income Satisfaction (1–5)", y = "CESD Score (0–24)",
-       title = "CESD Score by Income Satisfaction") 
-
-p2 <- ggplot(dat, aes(x = factor(income_rel), y = cesd8)) +
-  geom_boxplot() +
-  labs(x = "Perceived Relative Income Position (1–5)", y = "CESD Score (0–24)", 
-       title = "CESD Score by Perceived Income Status")
-
-p3 <- ggplot(dat, aes(x = factor(status_rel), y = cesd8)) +
-  geom_boxplot() +
-  labs(x = "Perceived Social Status (1–5)", y = "CESD Score (0–24)", 
-       title = "CESD Score by Perceived Social Status")
-
-p1 + p2
-
-```
-
-
-```{r}
-
-pc <- ggplot(dat_samplecty, aes(x = factor(county_id), y = cesd8)) + 
-  geom_boxplot() + 
-  labs(x = "County ID", y = "CESD Score", title = "CESD Score for 20 Randomly Selected County Clusters")
-
-p3 + pc
-```
-
-
-
-## 4. Variance Decomposition
-
-```{r}
-model_uncond <- lmer(cesd8 ~ 1 + (1 | family_id) + (1 | community_id) + (1 | county_id), data = dat)
-summary(model_uncond)
-```
-```{r}
-13.7571/(13.7571+.589+.3499+2.3938)
-2.3938/(13.7571+.589+.3499+2.3938)
-(.589+.3499+2.3938)/(13.7571+.589+.3499+2.3938)
-
-
-```
-
-## 5. Data Trends
-
-From our visualizations, we observe that there appears to be a negative relationship between CESD8 Depression scores (where higher indicates more depressive symptoms) and perceived income status, perceived social status, and personal income satisfaction (where higher indicates higher status/satisfcation).  This gives justification to our original question of how these three factors are related to mental health outcomes, and shows that from a completely pooled level, there is a relationship, and in particular it appears to be strongest by income satisfaction. Our boxplot for CESD Score for 20 Randomly Selected County Clusters also gives justification for the need for mutlilevel models, as we see that even on the county level, there is a large amount of variation (and also different sample sizes) in the CESD8 scores (and this is true for the family and community level, although the plots are not shown) In terms of variance, we observe that the residual variance by far exceeds the variance from any other clusters, indicating that within individual variance dominates, taking up 80\% of the total variance. For the other structures, family is the most important clustering structure in the data, making up around 15\% of the total variance. We observe that around 20\% of the total variance can be attributed to any grouping at all (family, community, or county), giving justification for the use of a hierarchical models. A possible sub-question we could look into is whether true income position or perceived income position is a better predictor for CESD8 scores. 
+In terms of variance, we observe that the residual variance by far exceeds the variance from any other clusters, indicating that within individual variance dominates, taking up 80\% of the total variance (Appendix B). For the other structures, family is the most important clustering structure in the data, making up around 15\% of the total variance. We observe that around 20\% of the total variance can be attributed to any grouping at all (family, community, or county), giving justification for the use of a hierarchical models (Appendix B). A possible sub-question we could look into is whether true income position or perceived income position is a better predictor for CESD8 scores. 
 
 
 ## 6. Mathmatical Model
@@ -165,6 +105,83 @@ Y_{ihck}
 $$
 
 ## 7. Initial Findings
+
+(References for these findings can be found Appendix Items B and D.) The cross-classified model estimates how perceived socioeconomic status measures relate to depression as measured by the CES-D8 survey among Chinese adults while controlling for demographic stats, household characteristics, and providence fixed effects. After adjusting for the covariates, all three predictors of relative socioeconomic measures are statistically significant at the 1\% level ($p < 0.001$). Income satisfaction shows the strongest association with depression: a one unit increase (relative to the sample mean) predicts a 0.53 point decrease in CES-D8 scores (this corresponds loosely to "half of a symptom"). Perceived relative income ($\beta = -0.17$) and perceived social status ($\beta=-0.33$) are also economically significant. Taken together, the findings suggest that individuals who feel better off or higher status than their peers tend to experience fewer depressive symptoms. Random-effects estimates show that most of the clustering occurs at the family level (var $\approx 2.31$) with smaller but still meaningful clustering happening at the community (var $\approx 0.29$) and county (var $\approx 0.20$) levels which suggests heterogeneity in depressive symptoms across families and communities. The results seem to indicate that subjective socioeconomic well being is a robust, consistent predictor of mental health in the CFPS 2022 data, but more work is needed to determine if these effects have any interactive effects between each other.
+
+## 8. Next Steps
+Our next steps are to refine the model and assess robustness. We plan to test interactions among the three subjective SES measures, examine subgroup differences (e.g., by gender or age), and compare our current four-level random-intercept model with alternatives such as cross-classified structures or limited random slopes. A remaining concern will be if adding complexity to the model will make estimates unstable or slow to fit. We would appreciate feedback on which extensions are most appropriate for this type of dataset and leverage the 4 levels in a more comprehensive way.
+
+\pagebreak
+
+# Appendix
+
+## Item A: Visualizations
+
+```{r}
+set.seed(120)  
+
+sample_cty <- dat %>%
+  distinct(county_id) %>%
+  slice_sample(n = 20)
+
+dat_samplecty <- dat %>%
+  filter(county_id %in% sample_cty$county_id)  %>% 
+  group_by(county_id) %>%
+  filter(n() > 1) %>%
+  ungroup()
+
+```
+
+```{r}
+
+library(patchwork)
+
+p1 <- ggplot(dat, aes(x = factor(income_satis), y = cesd8)) +
+  geom_boxplot() +
+  labs(x = "Income Satisfaction (1–5)", y = "CESD Score (0–24)",
+       title = "CESD Score by Income Satisfaction") 
+
+p2 <- ggplot(dat, aes(x = factor(income_rel), y = cesd8)) +
+  geom_boxplot() +
+  labs(x = "Perceived Relative Income Position (1–5)", y = "CESD Score (0–24)", 
+       title = "CESD Score by Perceived Income Status")
+
+p3 <- ggplot(dat, aes(x = factor(status_rel), y = cesd8)) +
+  geom_boxplot() +
+  labs(x = "Perceived Social Status (1–5)", y = "CESD Score (0–24)", 
+       title = "CESD Score by Perceived Social Status")
+
+p1 + p2
+
+```
+
+
+```{r}
+
+pc <- ggplot(dat_samplecty, aes(x = factor(county_id), y = cesd8)) + 
+  geom_boxplot() + 
+  labs(x = "County ID", y = "CESD Score", title = "CESD Score for 20 Randomly Selected County Clusters")
+
+p3 + pc
+```
+
+## Item B: Model Summary
+
+```{r}
+model_uncond <- lmer(cesd8 ~ 1 + (1 | family_id) + (1 | community_id) + (1 | county_id), data = dat)
+summary(model_uncond)
+```
+
+## Item C: ICC/Variance Analysis
+```{r}
+13.7571/(13.7571+.589+.3499+2.3938)
+2.3938/(13.7571+.589+.3499+2.3938)
+(.589+.3499+2.3938)/(13.7571+.589+.3499+2.3938)
+
+
+```
+
+## Item D: Model Output
 
 ```{r}
 # -------------------------------------------
@@ -294,8 +311,3 @@ kable(
 )
 
 ```
-
-The cross-classified model estimates how perceived socioeconomic status measures relate to depression as measured by the CES-D8 survey among Chinese adults while controlling for demographic stats, household characteristics, and providence fixed effects. After adjusting for the covariates, all three predictors of relative socioeconomic measures are statistically significant at the 1\% level ($p < 0.001$). Income satisfaction shows the strongest association with depression: a one unit increase (relative to the sample mean) predicts a 0.53 point decrease in CES-D8 scores (this corresponds loosely to "half of a symptom"). Perceived relative income ($\beta = -0.17$) and perceived social status ($\beta=-0.33$) are also economically significant. Taken together, the findings suggest that individuals who feel better off or higher status than their peers tend to experience fewer depressive symptoms. Random-effects estimates show that most of the clustering occurs at the family level (var $\approx 2.31$) with smaller but still meaningful clustering happening at the community (var $\approx 0.29$) and county (var $\approx 0.20$) levels which suggests heterogeneity in depressive symptoms across families and communities. The results seem to indicate that subjective socioeconomic well being is a robust, consistent predictor of mental health in the CFPS 2022 data, but more work is needed to determine if these effects have any interactive effects between each other.
-
-## 8. Next Steps
-Our next steps are to refine the model and assess robustness. We plan to test interactions among the three subjective SES measures, examine subgroup differences (e.g., by gender or age), and compare our current four-level random-intercept model with alternatives such as cross-classified structures or limited random slopes. A remaining concern will be if adding complexity to the model will make estimates unstable or slow to fit. We would appreciate feedback on which extensions are most appropriate for this type of dataset and leverage the 4 levels in a more comprehensive way.
