@@ -50,26 +50,6 @@ Our data come from the China Family Panel Study (CFPS) 2022, a nationally repres
 ```{r}
 set.seed(120)  
 
-sample_fams <- dat %>%
-  distinct(family_id) %>%
-  slice_sample(n = 20)
-
-dat_samplef <- dat %>%
-  filter(family_id %in% sample_fams$family_id) %>% 
-  group_by(family_id) %>%
-  filter(n() > 1) %>%
-  ungroup()
-
-sample_com <- dat %>%
-  distinct(community_id) %>%
-  slice_sample(n = 20)
-
-dat_samplec <- dat %>%
-  filter(community_id %in% sample_com$community_id)  %>% 
-  group_by(community_id) %>%
-  filter(n() > 1) %>%
-  ungroup()
-
 sample_cty <- dat %>%
   distinct(county_id) %>%
   slice_sample(n = 20)
@@ -94,7 +74,7 @@ p1 <- ggplot(dat, aes(x = factor(income_satis), y = cesd8)) +
 p2 <- ggplot(dat, aes(x = factor(income_rel), y = cesd8)) +
   geom_boxplot() +
   labs(x = "Perceived Relative Income Position (1–5)", y = "CESD Score (0–24)", 
-       title = "CESD Score by Perceived Relative Income Position")
+       title = "CESD Score by Perceived Income Status")
 
 p3 <- ggplot(dat, aes(x = factor(status_rel), y = cesd8)) +
   geom_boxplot() +
@@ -107,12 +87,6 @@ p1 + p2
 
 
 ```{r}
-
-pa <- ggplot(dat_samplef, aes(x = factor(family_id), y = cesd8)) +
-  geom_boxplot()
-
-pb <- ggplot(dat_samplec, aes(x = factor(community_id), y = cesd8)) + 
-  geom_boxplot()
 
 pc <- ggplot(dat_samplecty, aes(x = factor(county_id), y = cesd8)) + 
   geom_boxplot() + 
@@ -136,9 +110,10 @@ summary(model_uncond)
 
 
 ```
-We observe that the residual variance by far exceeds the variance from any other clusters, indicating that within individual variance dominates, taking up 80\% of the total variance. For the other structures, family is the most important clustering structure in the data, making up around 15\% of the total variance. We observe that around 20\% of the total variance can be attributed to any grouping at all (family, community, or county), giving justification for the use of a hierarchical models. 
 
 ## 5. Data Trends
+
+From our visualizations, we observe that there appears to be a negative relationship between CESD8 Depression scores (where higher indicates more depressive symptoms) and perceived income status, perceived social status, and personal income satisfaction (where higher indicates higher status/satisfcation).  This gives justification to our original question of how these three factors are related to mental health outcomes, and shows that from a completely pooled level, there is a relationship, and in particular it appears to be strongest by income satisfaction. Our boxplot for CESD Score for 20 Randomly Selected County Clusters also gives justification for the need for mutlilevel models, as we see that even on the county level, there is a large amount of variation (and also different sample sizes) in the CESD8 scores (and this is true for the family and community level, although the plots are not shown) In terms of variance, we observe that the residual variance by far exceeds the variance from any other clusters, indicating that within individual variance dominates, taking up 80\% of the total variance. For the other structures, family is the most important clustering structure in the data, making up around 15\% of the total variance. We observe that around 20\% of the total variance can be attributed to any grouping at all (family, community, or county), giving justification for the use of a hierarchical models. A possible sub-question we could look into is whether true income position or perceived income position is a better predictor for CESD8 scores. 
 
 
 ## 6. Mathmatical Model
