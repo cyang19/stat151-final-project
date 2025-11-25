@@ -7,10 +7,7 @@ library(readstata13)
 ```
 
 ```{r}
-child <- read.dta13("project_data/ecfps2022child_202410.dta")
-fam_conf <- read.dta13("project_data/ecfps2022famconf_202410.dta")
-fam_econ <- read.dta13("project_data/ecfps2022famecon_202410.dta")
-persons <- read.dta13("project_data/ecfps2022person_202410.dta")
+persons <- read.dta13("data/CFPS_2022/ecfps2022person_202410.dta")
 ```
 
 ```{r}
@@ -22,27 +19,76 @@ dat$cesd8 <- dat$cesd8 - 8
 ```
 
 ```{r}
-dat %>%
-  group_by(cid22) %>%
-  summarize(n_counties = n_distinct(countyid22)) %>%
-  filter(n_counties > 1)
-
-dat %>%
-  group_by(fid22) %>%
-  summarize(n_communities = n_distinct(cid22)) %>%
-  filter(n_communities > 1)
-
-dat %>%
-  group_by(countyid22) %>%
-  summarize(n_provinces = n_distinct(provcd22)) %>%
-  filter(n_provinces > 1)
+length(unique(dat$fid22))
+length(unique(dat$cid22))
+length(unique(dat$countyid22))
+length(unique(dat$provcd22))
 ```
 
 ```{r}
-nrow(dat)
-length(unique(dat$fid22))
-length(unique(dat$cid22))
-length(unique(dat$provcd22))
-mean(dat$cesd8)
-sd(dat$cesd8)
+relevant_cols <- c(
+  "pid",
+  "fid22",
+  "cid22",
+  "countyid22",
+  "provcd22",
+  "age",
+  "gender",
+  "urban22",
+  "military",
+  "cfps2022eduy_im",
+  "qz103", # Spoken lang
+  "qq1101", # Read books
+  "qq1001", # Hours on tv per week
+  "qq4010", # Sleep per day
+  "qq201", # Smoked in the month
+  "qp605_s_1", # Medical covg
+  "qn1101", # Rating of govt performance
+  "qd501", # Purchased welfare housing
+  "qp201", # Self-rated health
+  "qu11", # Use wechat
+  "qea203code", # 2020 unemployment (has n=1144)
+  "qgb6", # Reason for unemployment
+  "child16n", # Number of children <16
+  "marriage_last", # pre-load of marital status
+  "qg401", # Income satisfaction
+  "qn8011", # Relative income to area
+  "qn8012" # Relative status to area
+  )
+
+dat <- dat %>%
+  dplyr::select(relevant_cols)
+
+colnames(dat) <- c(
+  "person",
+  "family",
+  "community",
+  "county",
+  "province",
+  "age", 
+  "gender", 
+  "urban", 
+  "vet", 
+  "edu_yrs", 
+  "lang", 
+  "read_books", 
+  "hours_tv", 
+  "avg_sleep", 
+  "smoked", 
+  "coverage",
+  "govt_rating",
+  "welfare_housing",
+  "self-health",
+  "wechat",
+  "2020_employment",
+  "reason_unemployed",
+  "children",
+  "married",
+  "income_satis",
+  "income_rel",
+  "status_rel")
+```
+
+```{r}
+write.csv(dat, 'data/cleaned-data.csv')
 ```
