@@ -30,9 +30,10 @@ library(ggplot2)
 library(knitr)
 library(readr)
 library(broom.mixed)
-library(gt)
+# library(gt)
 library(dplyr)
 ```
+
 ```{r}
 # loading in cleaned data
 dat <- read_csv("data/cfps2022_clean_persons.csv")
@@ -46,9 +47,96 @@ Our data come from the China Family Panel Study (CFPS) 2022, a nationally repres
 
 ## 3. EDA Plots
 
+```{r}
+set.seed(120)  
+
+sample_fams <- dat %>%
+  distinct(family_id) %>%
+  slice_sample(n = 20)
+
+dat_samplef <- dat %>%
+  filter(family_id %in% sample_fams$family_id) %>% 
+  group_by(family_id) %>%
+  filter(n() > 1) %>%
+  ungroup()
+
+sample_com <- dat %>%
+  distinct(community_id) %>%
+  slice_sample(n = 20)
+
+dat_samplec <- dat %>%
+  filter(community_id %in% sample_com$community_id)  %>% 
+  group_by(community_id) %>%
+  filter(n() > 1) %>%
+  ungroup()
+
+sample_cty <- dat %>%
+  distinct(county_id) %>%
+  slice_sample(n = 20)
+
+dat_samplecty <- dat %>%
+  filter(county_id %in% sample_cty$county_id)  %>% 
+  group_by(county_id) %>%
+  filter(n() > 1) %>%
+  ungroup()
+
+```
+
+```{r}
+
+library(patchwork)
+
+p1 <- ggplot(dat, aes(x = factor(income_satis), y = cesd8)) +
+  geom_boxplot() +
+  labs(x = "Income Satisfaction (1–5)", y = "CESD Score (0–24)",
+       title = "CESD Score by Income Satisfaction") 
+
+p2 <- ggplot(dat, aes(x = factor(income_rel), y = cesd8)) +
+  geom_boxplot() +
+  labs(x = "Perceived Relative Income Position (1–5)", y = "CESD Score (0–24)", 
+       title = "CESD Score by Perceived Relative Income Position")
+
+p3 <- ggplot(dat, aes(x = factor(status_rel), y = cesd8)) +
+  geom_boxplot() +
+  labs(x = "Perceived Social Status (1–5)", y = "CESD Score (0–24)", 
+       title = "CESD Score by Perceived Social Status")
+
+p1 + p2
+
+```
+
+
+```{r}
+
+pa <- ggplot(dat_samplef, aes(x = factor(family_id), y = cesd8)) +
+  geom_boxplot()
+
+pb <- ggplot(dat_samplec, aes(x = factor(community_id), y = cesd8)) + 
+  geom_boxplot()
+
+pc <- ggplot(dat_samplecty, aes(x = factor(county_id), y = cesd8)) + 
+  geom_boxplot() + 
+  labs(x = "County ID", y = "CESD Score", title = "CESD Score for 20 Randomly Selected County Clusters")
+
+p3 + pc
+```
+
+
 
 ## 4. Variance Decomposition
 
+```{r}
+model_uncond <- lmer(cesd8 ~ 1 + (1 | family_id) + (1 | community_id) + (1 | county_id), data = dat)
+summary(model_uncond)
+```
+```{r}
+13.7571/(13.7571+.589+.3499+2.3938)
+2.3938/(13.7571+.589+.3499+2.3938)
+(.589+.3499+2.3938)/(13.7571+.589+.3499+2.3938)
+
+
+```
+We observe that the residual variance by far exceeds the variance from any other clusters, indicating that within individual variance dominates, taking up 80\% of the total variance. For the other structures, family is the most important clustering structure in the data, making up around 15\% of the total variance. We observe that around 20\% of the total variance can be attributed to any grouping at all (family, community, or county), giving justification for the use of a hierarchical models. 
 
 ## 5. Data Trends
 
