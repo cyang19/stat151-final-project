@@ -3,6 +3,10 @@ title: "Final Project – EDA & Preliminary Results"
 author: "Claire Yang, Saman De Silva, & Hans Elasri"
 date: "`r format(Sys.Date())`"
 output: pdf_document
+header-includes:
+  - \usepackage{amsmath}
+  - \usepackage{bm}
+
 geometry: margin=1in
 fontsize: 12pt
 linestretch: 1
@@ -24,6 +28,9 @@ library(broom.mixed)
 library(ggplot2)
 library(knitr)
 library(readr)
+library(broom.mixed)
+library(gt)
+library(dplyr)
 ```
 
 
@@ -52,11 +59,190 @@ Our data has these people nested among 10,558 families in 3,095 communities in 1
 
 ## 5. Data Trends
 
-## 6. Mathmatical Model
 
+## 6. Mathmatical Model
+Our model has four levels of clustering indexed as follows:
+\begin{itemize}
+  \item $i$: individuals
+  \item $h$: households/families
+  \item $c$: communities
+  \item $k$: counties
+\end{itemize}
+Our primary outcome variable is a (0-24) depression score: $Y_{ihck}$. \newline
+There are three primary predictors of interest (all grand mean centered Likert scores):
+\begin{itemize}
+  \item Income Satisfaction: $IS_{ij}^* = income\_satis_{ij} - \overline{income\_satis}$
+  \item Perception of Relative Income: $IR_{ij}^* = income\_rel_{ij} - \overline{income\_rel}$
+  \item Perception of Relative Social Status: $IS_{ij}^* = status\_rel{ij} - \overline{status\_rel}$
+\end{itemize}
+Let
+\begin{itemize}
+  \item $\bm{X}_{ihck}$ be a column vector of control variables, mostly level 1 (e.g. age, gender, ethnicity, rural/urban, CCP party member, retired, pension, etc)
+  \item $\bm{\delta}$ is the corresponding vector of fixed effect coefficients
+\end{itemize}
+The multilevel model is then as follows:\newline
+Level 1 (Individual):
+$$
+Y_{ihck} = \beta_{0hck} + \beta_1IS_{ihck}^* + \beta_2IR^*_{ihck}+\beta_3SR^*_{ihck} +\mathbf{X}^{T}_{ihck}\bm{\delta} + \sum_{p=2}^P \beta_p^{(prov)}D_{p(ihck)} + \varepsilon_{ihck}, \quad \varepsilon_{ihck} \sim \mathcal{N}(0,\sigma^2)
+$$
+where $D_{p(ihck)}$ is a dummy indicating that the individaul is in providence $p$.  \newline
+Level 2 (Family):
+$$
+\beta_{0hck} = \gamma_{00ck}+u_{0hck},\quad u_{0hck}\sim \mathcal{N}(n,\tau^2_{family})
+$$
+Level 3 (Community):
+$$
+\beta_{00ck} = \gamma_{000k}+v_{0ck},\quad v_{0ck}\sim \mathcal{N}(n,\tau^2_{community})
+$$
+Level 4 (County):
+$$
+\beta_{000k} = \gamma_{0000}+w_{0k},\quad w_{0k}\sim \mathcal{N}(n,\tau^2_{county})
+$$
+Combined:
+$$
+Y_{ihck}
+= \gamma_{0000}
++ \beta_1\,\text{IS}^*_{ihck}
++ \beta_2\,\text{IR}^*_{ihck}
++ \beta_3\,\text{SR}^*_{ihck}
++ \mathbf{X}_{ihck}^\top \boldsymbol{\delta}
++ \sum_{p=2}^{P} \beta_{p}^{(\text{prov})} D_{p(ihck)}
++ w_{0k} + v_{0ck} + u_{0hck}
++ \varepsilon_{ihck}.
+$$
 
 ## 7. Initial Findings
 
+```{r}
+# -------------------------------------------
+# Center SES predictors and continuous controls
+# -------------------------------------------
+
+clean_dat <- dat %>%
+  mutate(
+    # SES predictors (grand-mean centered)
+    c_income_satis = scale(income_satis, center = TRUE, scale = FALSE),
+    c_income_rel   = scale(income_rel, center = TRUE, scale = FALSE),
+    c_status_rel   = scale(status_rel, center = TRUE, scale = FALSE),
+
+    # controls (center continuous)
+    c_age          = scale(age, center = TRUE, scale = FALSE),
+    c_num_child    = scale(num_children_u16, center = TRUE, scale = FALSE),
+    c_family_size  = scale(family_size, center = TRUE, scale = FALSE),
+    c_wordlist     = scale(wordlist_raw, center = TRUE, scale = FALSE),
+    c_mathlist     = scale(mathlist_raw, center = TRUE, scale = FALSE),
+  )
+
+# -------------------------------------------
+# Convert categorical controls to factors
+# -------------------------------------------
+
+clean_dat <- clean_dat %>%
+  mutate(
+    gender = factor(gender),
+    employ_status = factor(employ_status),
+    handedness = factor(handedness),
+    province_id = factor(province_id)   # fixed effects
+  )
+
+# -------------------------------------------
+# Fit the 4-level random intercept model
+# -------------------------------------------
+
+model_basic <- lmer(
+  cesd8 ~ 
+    # SES predictors
+    c_income_satis + c_income_rel + c_status_rel +
+    
+    # Province fixed effects
+    province_id +
+    
+    # Level-1 controls
+    c_age + gender + ethnicity_han + hukou_rural + urban +
+    party_member + retired + pension +
+    employ_status + 
+    c_num_child + c_family_size +
+    c_wordlist + c_mathlist +
+    smoke_age + handedness +
+    
+    # Random intercepts (4 levels)
+    (1 | county_id) + (1 | community_id) + (1 | family_id),
+  
+  data = clean_dat,
+  REML = TRUE
+)
+```
+```{r, message=TRUE}
+# Extract selected fixed effects and add p-values from t-stats
+coef_table <- tidy(model_basic, effects = "fixed") %>%
+  filter(term %in% c(
+    "c_income_satis",
+    "c_income_rel",
+    "c_status_rel",
+    "c_age",
+    "gendermale"
+  )) %>%
+  mutate(
+    term = recode(term,
+      "c_income_satis" = "Income satisfaction (centered)",
+      "c_income_rel"   = "Relative income (centered)",
+      "c_status_rel"   = "Perceived social status (centered)",
+      "c_age"          = "Age (centered)",
+      "gendermale"     = "Male"
+    ),
+    # compute two-sided p-value from t statistic
+    p_value = 2 * pnorm(abs(statistic), lower.tail = FALSE)
+  ) %>%
+  transmute(
+    Term = term,
+    Estimate = estimate,
+    SE = std.error,
+    `t stat` = statistic,
+    `p-value` = p_value
+  )
+
+# Random-effect variances (no p-values)
+re_table <- tidy(model_basic, effects = "ran_pars") %>%
+  select(group, term, estimate) %>%
+  filter(term == "sd__(Intercept)") %>%
+  mutate(
+    group = recode(group,
+      "family_id"    = "Family SD",
+      "community_id" = "Community SD",
+      "county_id"    = "County SD",
+      "Residual"     = "Residual SD"
+    ),
+    Term = group,
+    Estimate = estimate,
+    SE = NA_real_,
+    `t stat` = NA_real_,
+    `p-value` = NA_real_
+  ) %>%
+  select(Term, Estimate, SE, `t stat`, `p-value`)
+
+# Combine into one table
+final_table <- bind_rows(coef_table, re_table)
+
+library(knitr)
+
+# Make a simplified version of the table (round numbers, rename columns)
+simple_table <- final_table %>%
+  select(-`p-value`) %>% 
+  mutate(
+    Estimate = round(Estimate, 3),
+    SE       = round(SE, 3),
+    `t stat` = round(`t stat`, 3)
+  )
+
+kable(
+  simple_table,
+  booktabs = TRUE,
+  caption = "Effects of Subjective SES on Depression (Multilevel Model)"
+)
+
+```
+
+The cross-classified model estimates how perceived socioeconomic status measures relate to depression as measured by the CES-D8 survey among Chinese adults while controlling for demographic stats, household characteristics, and providence fixed effects. After adjusting for the covariates, all three predictors of relative socioeconomic measures are statistically significant at the 1\% level ($p < 0.001$). Income satisfaction shows the strongest association with depression: a one unit increase (relative to the sample mean) predicts a 0.53 point decrease in CES-D8 scores (this corresponds loosely to "half of a symptom"). Perceived relative income ($\beta = -0.17$) and perceived social status ($\beta=-0.33$) are also economically significant. Taken together, the findings suggest that individuals who feel better off or higher status than their peers tend to experience fewer depressive symptoms. Random-effects estimates show that most of the clustering occurs at the family level (var $\approx 2.31$) with smaller but still meaningful clustering happening at the community (var $\approx 0.29$) and county (var $\approx 0.20$) levels which suggests heterogeneity in depressive symptoms across families and communities. The results seem to indicate that subjective socioeconomic well being is a robust, consistent predictor of mental health in the CFPS 2022 data, but more work is needed to determine if these effects have any interactive effects between each other.
 
 ## 8. Next Steps
-
+Our next steps are to refine the model and assess robustness. We plan to test interactions among the three subjective SES measures, examine subgroup differences (e.g., by gender or age), and compare our current four-level random-intercept model with alternatives such as cross-classified structures or limited random slopes. A remaining concern will be if adding complexity to the model will make estimates unstable or slow to fit. We would appreciate feedback on which extensions are most appropriate for this type of dataset and leverage the 4 levels in a more comprehensive way.
