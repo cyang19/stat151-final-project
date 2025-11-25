@@ -7,6 +7,14 @@ geometry: margin=1in
 fontsize: 12pt
 linestretch: 1
 ---
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE
+)
+```
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 # libraries for the project are here
@@ -22,8 +30,6 @@ library(readr)
 ```{r}
 # loading in cleaned data
 dat <- read_csv("data/cleaned-data.csv")
-glimpse(dat)
-head(dat)
 ```
 
 ## 1. Background & Primary Research Questions
