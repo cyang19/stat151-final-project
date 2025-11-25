@@ -1,1 +1,50 @@
-This is an RMarkdown File for any initial EDA we're doing. I think the cleaning is going ot take a lot. 
+---
+title: "Final Project – EDA & Preliminary Results"
+author: "Claire Yang, Saman De Silva, & Hans Elasri"
+date: "`r format(Sys.Date())`"
+output: pdf_document
+geometry: margin=1in
+fontsize: 12pt
+linestretch: 1
+---
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# libraries for the project are here
+library(tidyverse)
+library(lme4)
+library(broom.mixed)
+library(ggplot2)
+library(knitr)
+library(readr)
+```
+
+
+```{r}
+# loading in cleaned data
+dat <- read_csv("data/cleaned-data.csv")
+glimpse(dat)
+head(dat)
+```
+
+## 1. Background & Primary Research Questions
+asdf asdf asdf
+
+## 2. Data Sources & Structure
+asdf asdf asdf 
+
+## 3. EDA Plots
+
+
+## 4. Variance Decomposition
+
+
+## 5. Data Trends
+
+## 6. Mathmatical Model
+
+
+## 7. Initial Findings
+
+
+## 8. Next Steps
+
