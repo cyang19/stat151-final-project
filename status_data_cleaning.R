@@ -2,8 +2,18 @@
 library(tidyverse)
 library(readstata13)
 
+# Helper for printing block headers
+hrule <- function(title) {
+  cat("\n-------------------------------\n")
+  cat(title, "\n")
+  cat("-------------------------------\n\n")
+}
+
 # path to raw person file
 persons <- read.dta13("data/CFPS_2022/ecfps2022person_202410.dta")
+
+hrule("Initial raw CFPS dataset")
+cat("Raw rows:", nrow(persons), "\n")
 
 # helper to turn CFPS special codes into NA
 fix_missing <- function(x, extra_bad = NULL) {
@@ -15,8 +25,8 @@ fix_missing <- function(x, extra_bad = NULL) {
 
 ## ---- recode key variables ----
 dat <- persons %>%
-  # basic IDs & geography
   transmute(
+    # basic IDs & geography
     person_id     = pid,
     family_id     = fid22,
     community_id  = cid22,
@@ -49,10 +59,9 @@ dat <- persons %>%
     smoke_age     = fix_missing(smokeage),
     handedness    = fix_missing(hand),
     
-    # cognitive-ish measures
+    # cognitive-ish
     wordlist_raw  = fix_missing(wordlist),
     mathlist_raw  = fix_missing(mathlist),
-    # ses14_raw DROPPED – we won’t carry it forward
     
     # interview timing
     interview_year  = fix_missing(cyear),
@@ -61,74 +70,73 @@ dat <- persons %>%
     # employment status
     employ_raw    = fix_missing(employ),
     
-    # SES variables of interest
-    qg401         = qg401,   # income satisfaction
-    qn8011        = qn8011,  # relative income
-    qn8012        = qn8012,  # relative status
+    # SES variables
+    qg401         = qg401,
+    qn8011        = qn8011,
+    qn8012        = qn8012,
     
-    # depression (CES-D8)
+    # depression
     cesd8_raw     = cesd8
   )
+
+hrule("After recoding key variables")
+cat("Rows:", nrow(dat), "\n")
+dat %>%
+  summarise(
+    missing_age = sum(is.na(age)),
+    missing_gender = sum(is.na(gender_raw)),
+    missing_cesd8 = sum(is.na(cesd8_raw))
+  ) %>% print()
 
 ## ---- clean SES + depression ----
 dat <- dat %>%
   mutate(
-    # recode SES missing / “non-substantive” responses
-    income_satis = fix_missing(qg401),                      # 1–5
-    income_rel   = fix_missing(qn8011, extra_bad = 79),     # 1–5, 79 = "not sure"
-    status_rel   = fix_missing(qn8012),                     # 1–5
-    
-    # clean CES-D8: CFPS stores it shifted; valid if > -8
-    cesd8 = ifelse(!is.na(cesd8_raw) & cesd8_raw > -8,
-                   cesd8_raw - 8, NA_real_)
+    income_satis = fix_missing(qg401),
+    income_rel   = fix_missing(qn8011, extra_bad = 79),
+    status_rel   = fix_missing(qn8012),
+    cesd8 = ifelse(!is.na(cesd8_raw) & cesd8_raw > -8, cesd8_raw - 8, NA_real_)
   )
 
-## ---- clean/label categorical variables ----
+hrule("After SES + CESD8 cleaning")
+cat("Rows:", nrow(dat), "\n")
+dat %>%
+  summarise(
+    missing_income_satis = sum(is.na(income_satis)),
+    missing_income_rel   = sum(is.na(income_rel)),
+    missing_status_rel   = sum(is.na(status_rel)),
+    missing_cesd8_clean  = sum(is.na(cesd8))
+  ) %>% print()
+
+## ---- clean categorical variables ----
 dat <- dat %>%
   mutate(
-    # gender: CFPS usually 1 = male, 2 = female
     gender = case_when(
       gender_raw == 1 ~ "male",
       gender_raw == 2 ~ "female",
       TRUE ~ NA_character_
     ),
-    
-    # ethnicity: 1 = Han, others / NA = 0
     ethnicity_han = ifelse(ethnicity_raw == 1, 1, 0),
-    
-    # hukou: 1 = rural/agricultural hukou, others / NA = 0
-    hukou_rural = ifelse(hukou_raw == 1, 1, 0),
-    
-    # urban: 1 urban, 0 rural
+    hukou_rural   = ifelse(hukou_raw == 1, 1, 0),
     urban = case_when(
       urban_raw == 1 ~ 1,
       urban_raw == 0 ~ 0,
       TRUE ~ NA_real_
     ),
-    
-    # party membership
     party_member = case_when(
-      party_member_raw == 1 ~ 1,  # Communist Party member
+      party_member_raw == 1 ~ 1,
       party_member_raw == 0 ~ 0,
       TRUE ~ NA_real_
     ),
-    
-    # retired indicator
     retired = case_when(
       retired_raw == 1 ~ 1,
       retired_raw == 0 ~ 0,
       TRUE ~ NA_real_
     ),
-    
-    # pension beneficiary indicator
     pension = case_when(
       pension_raw == 1 ~ 1,
       pension_raw == 0 ~ 0,
       TRUE ~ NA_real_
     ),
-    
-    # employment status (for reference)
-    # EMPLOY: 1 = employed, 0 = unemployed, 3 = out of labor force
     employ_status = case_when(
       employ_raw == 1 ~ "employed",
       employ_raw == 0 ~ "unemployed",
@@ -137,38 +145,47 @@ dat <- dat %>%
     )
   )
 
-## ---- fix structural NAs: convert skipped items into real zeros ----
+hrule("After categorical recoding")
+cat("Rows:", nrow(dat), "\n")
+dat %>%
+  summarise(
+    missing_gender = sum(is.na(gender)),
+    missing_employ = sum(is.na(employ_status))
+  ) %>% print()
+
+## ---- fix structural NAs ----
 dat <- dat %>%
   mutate(
-    # Party membership: missing = not a party member
     party_member = ifelse(is.na(party_member), 0, party_member),
-    
-    # Retired: missing = not retired
     retired = ifelse(is.na(retired), 0, retired),
-    
-    # Pension recipient: missing = no pension
     pension = ifelse(is.na(pension), 0, pension),
-    
-    # Gender: if gender still NA but gender_raw exists, call it female
-    gender = ifelse(is.na(gender) & !is.na(gender_raw),
-                    "female", gender),
-    
-    # Handedness: missing = right-handed
+    gender = ifelse(is.na(gender) & !is.na(gender_raw), "female", gender),
     handedness = ifelse(is.na(handedness), "right", handedness),
-    
-    # Smoking age: missing = never smoked (0)
     smoke_age = ifelse(is.na(smoke_age), 0, smoke_age)
   )
 
-## ---- drop invalid IDs (-9) ----
+hrule("After fixing structural NAs")
+cat("Rows:", nrow(dat), "\n")
+
+## ---- drop invalid IDs ----
 dat <- dat %>%
   filter(
-    !is.na(person_id), person_id > 0,
-    !is.na(family_id), family_id > 0,
-    !is.na(community_id), community_id > 0,
-    !is.na(county_id), county_id > 0,
-    !is.na(province_id), province_id > 0
+    person_id > 0,
+    family_id > 0,
+    community_id > 0,
+    county_id > 0,
+    province_id > 0
   )
+
+hrule("After dropping invalid IDs")
+cat("Rows:", nrow(dat), "\n")
+dat %>%
+  summarise(
+    families = n_distinct(family_id),
+    communities = n_distinct(community_id),
+    counties = n_distinct(county_id),
+    provinces = n_distinct(province_id)
+  ) %>% print()
 
 ## ---- restrict to analytic sample ----
 clean_dat <- dat %>%
@@ -181,46 +198,18 @@ clean_dat <- dat %>%
     age >= 18
   )
 
-clean_dat <- clean_dat %>%
-  select(
-    # IDs & geography
-    person_id, family_id, community_id, county_id, province_id,
-    
-    # outcome
-    cesd8,
-    
-    # core SES predictors
-    income_satis, income_rel, status_rel,
-    
-    # demographics
-    age, gender, ethnicity_han, hukou_rural, urban,
-    party_member, retired, pension,
-    
-    # family / household
-    num_children_u16, family_size,
-    
-    # cognition / baseline SES
-    edu_last_raw, edu_update,
-    wordlist_raw, mathlist_raw,
-    
-    # employment
-    employ_status,
-    
-    # smoking, handedness
-    smoke_age, handedness,
-    
-    # timing
-    interview_year, interview_month
-  )
+hrule("After restricting to analytic sample")
+cat("Rows:", nrow(clean_dat), "\n")
+clean_dat %>%
+  summarise(
+    families = n_distinct(family_id),
+    communities = n_distinct(community_id),
+    counties = n_distinct(county_id),
+    provinces = n_distinct(province_id)
+  ) %>% print()
 
-## ---- write out cleaned data ----
+## ---- write data ----
 write.csv(clean_dat,
           "data/cfps2022_clean_persons.csv",
           row.names = FALSE)
 
-# Quick sanity check
-nrow(clean_dat)
-summary(clean_dat$cesd8)
-summary(clean_dat$income_satis)
-summary(clean_dat$income_rel)
-summary(clean_dat$status_rel)

@@ -40,15 +40,10 @@ dat <- read_csv("data/cfps2022_clean_persons.csv")
 ```
 
 ## 1. Background & Primary Research Questions
-asdf asdf asdf
+In this project, we use the 2022 wave of the China Family Panel Survey (CFPS) to study how adults' perceived income satisfaction, perceived income relative to others, and perceived social status are related to depressive symptoms, as measured by the CES-D8 scale. Our primary research questions are: (1) Are higher levels of subjective socioeconomic status associated with lower depression scores, after adjusting for demographic and household characteristics, and if so is there an interactive effect between the subjective scores? (2) How much of the variation in depression occurs between individuals versus between families, communities, and counties? and (3) To what extent to these associations remain after controlling for proxies of socioeconomic status such as education, employment status, and household composition?
 
 ## 2. Data Sources & Structure
-<!-- this needs more context; i.e like where is this data from -->
-Our raw data contains $n=27,001$ observations of person-level data nested in families, communities, and provinces. The data source is the China Family Panel Survey (CFPS) 2022 results which surveyed families throughout China on many outcomes. Our variable of interest is individuals' self-reported CESD-8 scores which measure mental well-being.
-
-To clean our dataset we remove any observation for which we do not have an outcome variable (mental health) which limits our observations to $n=23,041$. The outcome is reported on the scale (0,24) where greater values indicated a higher likelihood of depression.
-
-Our data has these people nested among 10,558 families in 3,095 communities in 1,039 counties in 31 provinces. Families and communities are not perfectly collinear so we must examine their cross-effects.
+Our data come from the China Family Panel Study (CFPS) 2022, a nationally representative household survey administered by the Institute of Social Science Survey at Peking University. The raw person-level dataset contains 27,001 individuals, each linked to hierarchical identifiers for families, communities, counties, and providences. After recoding special missing codes and cleaning key SES and demographic variables, removing structurally invalid IDs, our dataset reduces to 23,727 individuals nested in 9,663 families, 3,220 communities, 760 counties, and 31 provinces. For the analytic sample, we drop respondents missing any of the three SES predictors of interest, missing depression scores, or under age 18. This produces a final dataset of 14,575 adults nested in 8,123 families, 2,856 communities, 702 counties, and all 31 providences. We believe that missingness is largely missing completely at random based on the user guide, but more work is needed to verify this assumption. All variables come from survey interviers (no administrative data or observational data) and we created no synthetic measures other than centering continuous covariates and contructing binary indicators. The major data decisions made were (1) treating CFPS special codes as true missingness, (2) dropping households with invalid/missing geographic IDs, and (3) restricting to respondents with complete SES and outcome information. These steps ensure comparability across respondents and preserve the multilevel structure needed for our 4 level model.
 
 
 ## 3. EDA Plots
