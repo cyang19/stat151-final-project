@@ -1,0 +1,88 @@
+---
+title: "final-write-up"
+output: pdf_document
+date: "2025-12-06"
+---
+
+# Intro
+
+Some writing on the impact of China's Zero-COVID policy including \href{https://www.theguardian.com/commentisfree/2023/apr/18/china-zero-covid-policy-xi-jinping}{expository journalism}, \href{https://www.cambridge.org/core/journals/journal-of-social-policy/article/chinas-zerocovid-policy-and-psychological-distress-a-spatial-quasiexperimental-design/461FE7A709242689346D012BF02017E3}{research}, and \href{https://www.pbs.org/newshour/show/thousands-in-china-protest-zero-covid-policy-in-largest-demonstrations-in-decades}{protests} 
+
+\textbf{What was the impact of COVID on depression in China? Was that most caused by stringency, public health, or economic downturn?}
+
+# Data
+
+
+
+# Methods
+
+We implement a longitudinal model with time in people in community in province. We provide a vector of individual-level covariates that help minimize confoundingness. To obtain a causal estimate of the impact of COVID, we interact a number of COVID-severity measures with province and time. 
+
+Were we to only have a post and pre-COVID timing, we'd have
+
+$$
+\begin{align}
+\text{lvl 1 (time):} &\\
+&y_{tifcp} = \pi_{ifcp} + \pi_{1p}\text{Post}_t + \epsilon_{ij}\\
+\\
+\text{lvl 2 (person)}&\\
+&\pi_{ifcp}= \beta_{fcp} + \beta'\textbf{X} + u_{0}\\
+\\
+\text{lvl 3 (family)}&\\
+&\beta_{fcp} = \gamma_{cp} + u_{1}\\
+\\
+\text{lvl 4 (community)}&\\
+&\gamma_{cp} = \alpha_{p} + u_{2}\\
+\\
+\text{lvl 5 (province)}&\\
+& \alpha_p = \nu_{00} + \nu_{01}\text{Treat}_p + u_{30}\\
+& \pi_{1p} = \nu_{10} + \nu_{11}\text{Treat}_p + u_{31}
+
+\end{align}
+$$
+
+Or a full model:
+$$
+y_{tifcp}= \nu_{00} + \beta'\textbf{X} + \nu_{01}\text{Treat}_p + \nu_{10}\text{Post}_t + \nu_{11}\text{Post}_t*\text{Treat}_p + (\epsilon_{ij} + u_0 + u_1 + u_2 + u_{30} + u_{31}\text{Post}_t)
+$$
+
+In spite of its scary notation, it's really just a friendly DiD with a row of individual-level covariates and a bunch of random effects. Note that we do include provincial random slopes to allow the treatment effect to vary province.
+
+Now, our remaining nuance is to allow a piecewise fit for each timepoint
+
+$$
+\begin{align}
+\text{lvl 1 (province-time):} &\\
+&y_{tifcp} = \pi_{ifcp} + \sum_\tau\delta_{\tau}D_{\tau t} + \pi_{pt}\text{Treat}_{pt} + \epsilon_{tifcp}\\
+\\
+\text{lvl 2 (person)}&\\
+&\pi_{ifcp}= \beta_{fcp} + \beta'\textbf{X} + u_{0}\\
+\\
+\text{lvl 3 (family)}&\\
+&\beta_{fcp} = \gamma_{cp} + u_{1}\\
+\\
+\text{lvl 4 (community)}&\\
+&\gamma_{cp} = \alpha_{p} + u_{2}\\
+\\
+\text{lvl 5 (province)}&\\
+& \alpha_p = \nu_{00} + u_{30}\\
+& \pi_{pt} = \nu_{10} + u_{31}
+
+\end{align}
+$$
+Now, we've shifted away from some a fixed treatment (fixed over time but varies between province) to a finer unit of treatment that varies at province-time. That is, each unit of province-time will now have its own provincial measure for the given timestep of the data. Because province-time is our smallest unit, we can nest that as our new unit of observation. This also allows our treatment to be a level one variable rather than level 5, which cleans up our notation. Note that we still have a lvl 5 random slope because we want the treatment effects to vary by province. 
+
+Also note that we include time fixed effects rather than a single "post" variable to react to our continuous treatment. Each fixed effects is a $\delta_{\tau}$ and the $D_{t\tau}$ is simply a dummy indicator variable to make the math work. Our final expression now becomes.
+
+$$
+y_{tifcp}= \nu_{00} + \beta'\textbf{X} + \sum_\tau\delta_{\tau}D_{\tau t} + \nu_{10}\text{Treat}_{pt} + (\epsilon_{ij} + u_0 + u_1 + u_2 + u_{30} + u_{31}\text{Treat}_{pt})
+$$
+Finally, note that the treatment here does not need an interaction term because the variable itself already captures pre- or post-COVID by being 0 before (idk how this interacts with GDP change).
+
+If we want to add random slopes for time we could do so simply by interacting the level one treatment variable and the time FEs. This would give a random slope to each province at each time point; currently we're generalizing that a province has the same effect at every time step.
+
+A more effective modeling choice might be to let the effect of COVID intensity vary depending on the wave that China was experiencing. This would involve setting a piecewise dummy variable as we learned in class. This would require creating  an additional random effect at the province level so that effect size would vary by province during both waves.
+
+$$
+y_{tifcp}= \nu_{00} + \beta'\textbf{X} + \sum_\tau\delta_{\tau}D_{\tau t} + \nu_{10}(\text{Wave 1}_t)\text{Treat}_{pt} + \nu_{20}(\text{Wave 2}_t)\text{Treat}_{pt} + (\epsilon_{ij} + u_0 + u_1 + u_2 + u_{30} + u_{31}\text{Treat}_{pt})
+$$
