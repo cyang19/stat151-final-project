@@ -1,0 +1,31 @@
+% ============================
+% Global formatting
+% ============================
+\usepackage{setspace}
+\doublespacing  % Body double-spaced
+
+\usepackage[margin=1in]{geometry}
+\usepackage{mathptmx}             % Times-like font
+
+\setlength{\parindent}{0.5in}
+\setlength{\parskip}{0pt}
+
+% ============================
+% Single-spaced section headings
+% ============================
+\usepackage{titlesec}
+
+\titlespacing*{\section}{0pt}{12pt}{6pt}
+\titlespacing*{\subsection}{0pt}{12pt}{6pt}
+
+\titleformat{\section}
+  {\singlespacing\normalfont\large\bfseries}{\thesection}{1em}{}
+
+\titleformat{\subsection}
+  {\singlespacing\normalfont\normalsize\bfseries}{\thesubsection}{1em}{}
+
+% ============================
+% Endnotes instead of footnotes
+% ============================
+\usepackage{endnotes}
+\let\footnote=\endnote

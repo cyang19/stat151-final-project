@@ -1,0 +1,77 @@
+---
+output:
+  pdf_document:
+    includes:
+      in_header: header.tex
+  html_document: default
+fontsize: 12pt
+mainfont: "Times New Roman"
+geometry: margin=1in
+---
+
+# Intro
+
+In response to the COVID-19 Pandemic, the Chinese government instated a "Zero-COVID Policy," one that emphasized heavy regulation of personal freedoms with the goal of limiting COVID cases to zero. Much has been said about China's policy-making during this time, including expository journalism[^1], research[^2], and public protest.[^3] Existing literature on China's repsonse to COVID-19 has largely emphasized typical epidemiological effects including COVID-19 prevalence, respiratory outcomes, and more. We identified a gap of longitudinal studies that seek to interrogate how COVID-19 impacted the mental health of Chinese citizens during this time. 
+
+\noindent As such, we are primarily interested in the following two research questions:
+
+- What was the impact of COVID on depression in China?
+- Was that most caused by stringency, public health, or economic downturn?
+
+# Data
+
+We combine data from a number of sources. Our foundational data is taken from the \href{https://cfpsdata.pku.edu.cn/#/home}{China Family Panel Survey (CFPS)} out of Peking University. We use its survey waves in 2016, 2018, 2020, and 2022; we only use those individuals who were surveyed at each of these timepoints and were not missing crucial covariates or outcomes ($n=12806$). Our outcome is given by the CES-D 20 survey, a questionnaire that asks questions about a respondents mental health and produces an output on a 60 point scale. The CFPS collected data on this during each of these waves.
+
+We merge this data with three different continuous treatment variables. First, is the Oxford COVID-19 Government Response Tracker (OxCGRT) which provides data on the stringency of government regulations during COVID. It's data was collected by [BLANK]. Second, are public health indices from the Open COVID Data Portal—specifically, we use BLANK METRIC. Lastly, we use BLANK FOR ECONOMICS.
+
+Our data has five levels: 4 time points nested in 12806 individuals in 7770 families in 3318 communities in 32 provinces. 
+
+# Methods
+
+Our data have time (month), $t$, nested in an individual $i$ who belongs to a family $f$ in a community $c$ that is in one of China's provinces $p$. 
+
+Our stringency metric, $\text{Treat}_{pt}$, ranges from 0 to 24 (TO BE UPDATED) and is 0 for all months in surveys taken before 2020. For the 2020 and 2022 surveys, the stringency metric varies across provinces and across months. Our multilevel model is:
+\begin{align*}
+\text{Level 1 (time within person):    }
+y_{tifcp} &= \pi_{ifcp} + \beta_{1}\,\text{Treat}_{pt} + \boldsymbol{\beta}_{Z}^{\top}\mathbf{Z}_{tifcp} + \varepsilon_{tifcp}, \\
+\varepsilon_{tifcp} &\sim \mathcal{N}(0,\sigma^2_\varepsilon)\\
+\text{Level 2 (person):    }
+\pi_{ifcp} &= \beta_{fcp} + \boldsymbol{\beta}_{X}^{\top}\mathbf{X}_{ifcp} + u_{ifcp}, \\
+u_{ifcp} &\sim \mathcal{N}(0,\sigma^2_i)\\
+\text{Level 3 (family):    }
+\beta_{fcp} &= \gamma_{cp} + u_{fcp}, \\
+u_{fcp} &\sim \mathcal{N}(0,\sigma^2_f)\\
+\text{Level 4 (community):     }
+\gamma_{cp} &= \alpha_{p} + u_{cp}, \\
+u_{cp} &\sim \mathcal{N}(0,\sigma^2_c),\\
+\text{Level 5 (province):    }
+\alpha_{p} &= \nu + u_{p}, \\
+u_{p} &\sim \mathcal{N}(0,\sigma^2_p),
+\end{align*}
+where $y_{tifcp}$ is the depression score for individual $i$ in family $f$, community $c$, province $p$ at month $t$, $\text{Treat}_{pt}$ is the province-by-month COVID policy stringency index, and $\mathbf{Z}_{tifcp}$ is a vector of time-varying, individual-level covariates (e.g.,LIST SOME HERE age, income, whatever; see Appendix Table A1 DO THE APPENDIX). The coefficient $\beta_{1}$ captures the average association between policy stringency and depression, conditional on other covariates.
+
+where $\mathbf{X}_{ifcp}$ is a vector of time-invariant individual-level covariates (e.g., LIST SOME HERE see Appendix Table A1) and $\boldsymbol{\beta}_{X}$ is the corresponding coefficient vector. The random intercept $u_{ifcp}$ captures unobserved, person-specific heterogeneity. We also include $u_{fcp}$ as a family-level random intercept, $u_{cp}$ as a community-level random intercept, and $u_{p}$ as a province-level random intercept. $\nu$ is the grand mean depression level.
+
+Taken together, this specification allows us to estimate the province-month stringency effect $\beta_{1}$ on individual depression while accounting for time-varying individual covariates, time-invariant person-level covariates, and clustering of observations within persons, families, communities, and provinces.
+
+# Results
+
+# Discussion
+
+# Conclusion
+
+\pagebreak
+
+# Endnotes
+
+[^1]: Murong Xuecun. (2023, April 18). China’s ‘zero Covid’ policy was a mass imprisonment campaign. The Guardian. https://www.theguardian.com/commentisfree/2023/apr/18/china-zero-covid-policy-xi-jinping
+
+[^2]: Yan, K., Jiang, S., Xia, L., Jin, T., Dai, A., Gu, C., & Li, A. (2025). China’s zero-COVID policy and psychological distress: a spatial quasi-experimental design. Journal of Social Policy, 54(3), 1029–1046. doi:10.1017/S0047279423000430
+
+[^3]: Schifrin, N., & Cebrián Aranda, T. (2022, November 28). Thousands in China protest zero-COVID policy in largest demonstrations in decades. PBS NewsHour. https://www.pbs.org/newshour/show/thousands-in-china-protest-zero-covid-policy-in-largest-demonstrations-in-decades
+
+
+\begingroup
+\setstretch{1} % optional: single-space the endnotes
+\theendnotes
+\endgroup

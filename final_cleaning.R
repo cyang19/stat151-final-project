@@ -111,3 +111,6 @@ waves_per_person <- table(table(dat_clean$pid))
 
 cat("\nDistribution of waves per person:\n")
 print(waves_per_person)
+
+length(unique(dat_clean$cid))
+
