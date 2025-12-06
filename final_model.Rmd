@@ -1,0 +1,134 @@
+---
+title: "Final Model"
+author: "Team"
+date: "`r format(Sys.Date())`"
+output: pdf_document
+geometry: margin=1in
+fontsize: 11pt
+---
+
+```{r}
+# Path to cleaned CFPS person-year dataset
+clean_path <- "data/cfps_model_ready.csv"
+
+cfps <- read.csv(clean_path, stringsAsFactors = FALSE)
+
+# Basic info
+
+cat("Number of rows:", nrow(cfps), "\n")
+cat("Number of columns:", ncol(cfps), "\n\n")
+
+# Peek at column names
+names(cfps)
+```
+
+```{r}
+str(cfps)
+```
+
+```{r}
+# Unique survey years and counts
+
+cat("Unique years (cyear):\n")
+print(sort(unique(cfps$cyear)))
+
+cat("\nCount by year:\n")
+print(table(cfps$cyear, useNA = "ifany"))
+
+cat("\nUnique months (cmonth):\n")
+print(sort(unique(cfps$cmonth)))
+
+cat("\nCross-tab of year × month (first few):\n")
+tab_year_month <- table(cfps$cyear, cfps$cmonth, useNA = "ifany")
+tab_year_month[ , colSums(tab_year_month) > 0, drop = FALSE]
+```
+
+```{r}
+# How many unique persons?
+
+n_pid <- length(unique(cfps$pid))
+cat("Number of unique persons (pid):", n_pid, "\n\n")
+
+# Check uniqueness of person-year rows
+
+key_df <- cfps[, c("pid", "cyear")]
+dup_key <- duplicated(key_df)
+
+cat("Number of duplicate pid–cyear combinations:", sum(dup_key), "\n")
+
+if (sum(dup_key) > 0) {
+cat("Showing first few duplicates:\n")
+print(head(cfps[dup_key, c("pid", "cyear")]))
+}
+```
+
+```{r}
+core_vars <- c(
+"pid", "code", "fid", "cid", "countyid", "provcd",
+"psu", "subsample", "subpopulation",
+"wt_natcs", "wt_natpn10",
+"cyear", "cmonth",
+"qa001y", "qa001m",
+"cesd20", "cesd8",
+"age", "gender", "education", "urban",
+"marital", "health", "party", "hukou", "ethnicity"
+)
+
+core_vars <- intersect(core_vars, names(cfps))
+
+missing_prop_core <- sapply(core_vars, function(v) {
+mean(is.na(cfps[[v]]))
+})
+
+cat("Missingness for core variables:\n")
+print(round(missing_prop_core, 3))
+```
+
+```{r}
+# CESD-20 summary by year
+
+years <- sort(unique(cfps$cyear))
+for (yy in years) {
+cat("\nYear:", yy, "\n")
+vals <- cfps$cesd20[cfps$cyear == yy]
+cat("  N (non-missing):", sum(!is.na(vals)), "\n")
+cat("  Mean (sd):",
+round(mean(vals, na.rm = TRUE), 2), "(",
+round(sd(vals, na.rm = TRUE), 2), ")\n")
+}
+```
+
+```{r}
+# Gender distribution by year (if coded as 0/1 or 1/2, this is still informative)
+
+if ("gender" %in% names(cfps)) {
+cat("\nGender distribution by year:\n")
+print(table(cfps$cyear, cfps$gender, useNA = "ifany"))
+}
+
+# Urban vs rural by year
+
+if ("urban" %in% names(cfps)) {
+cat("\nUrban (0/1) by year:\n")
+print(table(cfps$cyear, cfps$urban, useNA = "ifany"))
+}
+```
+
+```{r}
+hist(
+cfps$cesd20,
+breaks = 30,
+main = "Distribution of CESD-20 (all years)",
+xlab = "CESD-20 score"
+)
+```
+
+```{r}
+boxplot(
+cesd20 ~ cyear,
+data = cfps,
+main = "CESD-20 by survey year",
+xlab = "Year",
+ylab = "CESD-20 score"
+)
+```
