@@ -20,7 +20,7 @@ We implement a longitudinal model with time in people in community in province. 
 
 Were we to only have a post and pre-COVID timing, we'd have
 
-$$
+
 \begin{align}
 \text{lvl 1 (time):} &\\
 &y_{tifcp} = \pi_{ifcp} + \pi_{1p}\text{Post}_t + \epsilon_{ij}\\
@@ -37,9 +37,8 @@ $$
 \text{lvl 5 (province)}&\\
 & \alpha_p = \nu_{00} + \nu_{01}\text{Treat}_p + u_{30}\\
 & \pi_{1p} = \nu_{10} + \nu_{11}\text{Treat}_p + u_{31}
-
 \end{align}
-$$
+
 
 Or a full model:
 $$
@@ -50,7 +49,7 @@ In spite of its scary notation, it's really just a friendly DiD with a row of in
 
 Now, our remaining nuance is to allow a piecewise fit for each timepoint
 
-$$
+
 \begin{align}
 \text{lvl 1 (province-time):} &\\
 &y_{tifcp} = \pi_{ifcp} + \sum_\tau\delta_{\tau}D_{\tau t} + \pi_{pt}\text{Treat}_{pt} + \epsilon_{tifcp}\\
@@ -67,9 +66,8 @@ $$
 \text{lvl 5 (province)}&\\
 & \alpha_p = \nu_{00} + u_{30}\\
 & \pi_{pt} = \nu_{10} + u_{31}
-
 \end{align}
-$$
+
 Now, we've shifted away from some a fixed treatment (fixed over time but varies between province) to a finer unit of treatment that varies at province-time. That is, each unit of province-time will now have its own provincial measure for the given timestep of the data. Because province-time is our smallest unit, we can nest that as our new unit of observation. This also allows our treatment to be a level one variable rather than level 5, which cleans up our notation. Note that we still have a lvl 5 random slope because we want the treatment effects to vary by province. 
 
 Also note that we include time fixed effects rather than a single "post" variable to react to our continuous treatment. Each fixed effects is a $\delta_{\tau}$ and the $D_{t\tau}$ is simply a dummy indicator variable to make the math work. Our final expression now becomes.
