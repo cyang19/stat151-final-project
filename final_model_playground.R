@@ -124,3 +124,66 @@ model_n_wave <- lmer(
 
 summary(model_n_wave)
 
+
+# within provende stringency
+cfps_model <- cfps_model %>%
+  group_by(provcd) %>%
+  mutate(
+    stringency_wp = StringencyIndex_Average -
+      mean(StringencyIndex_Average, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+model_wp <- lmer(
+  cesd20 ~
+    stringency_wp +
+    wave + age_c + health_c +
+    urban + gender + education + marital +
+    (1 | provcd) + (1 | cid) + (1 | fid) + (1 | pid),
+  data = cfps_model
+)
+
+summary(model_wp)
+
+
+# stringency interacted with wave
+model_int <- lmer(
+  cesd20 ~
+    StringencyIndex_Average * wave +
+    age_c + health_c +
+    urban + gender + education + marital +
+    (1 | provcd) + (1 | cid) + (1 | fid) + (1 | pid),
+  data = cfps_model
+)
+
+summary(model_int)
+
+
+# pandemic instead of waves
+cfps_model <- cfps_model %>%
+  mutate(
+    pandemic = ifelse(wave %in% c("3", "4"), 1, 0),
+    pandemic = factor(pandemic)
+  )
+
+model_pandemic_int <- lmer(
+  cesd20 ~
+    pandemic * StringencyIndex_Average +
+    wave + age_c + health_c +
+    urban + gender + education + marital +
+    (1 | provcd) + (1 | cid) + (1 | fid) + (1 | pid),
+  data = cfps_model
+)
+
+summary(model_pandemic_int)
+
+model_pandemic <- lmer(
+  cesd20 ~
+    pandemic +
+    wave + age_c + health_c +
+    urban + gender + education + marital +
+    (1 | provcd) + (1 | cid) + (1 | fid) + (1 | pid),
+  data = cfps_model
+)
+
+summary(model_pandemic)
