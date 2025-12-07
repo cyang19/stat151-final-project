@@ -137,4 +137,9 @@ table(cfps$cyear, is.na(cfps$StringencyIndex_Average))
 sort(unique(cfps$province))
 sort(unique(stringency_clean$province))
 
-
+# save data
+write.csv(
+  cfps,
+  file = "data/final_merged_data.csv",
+  row.names = FALSE
+)
