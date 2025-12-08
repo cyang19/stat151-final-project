@@ -83,8 +83,13 @@ stringency_clean <- stringency %>%
     new_deceased,
     cumulative_confirmed,
     cumulative_deceased,
-    StringencyIndex_Average
+    StringencyIndex_Average, 
+    new_confirmed_per_capita,
+    new_deceased_per_capita,
+    cumulative_confirmed_per_capita,
+    cumulative_deceased_per_capita
   )
+
 
 
 ## --------------------------------------------------
@@ -132,6 +137,7 @@ summary(cfps$StringencyIndex_Average)
 
 # How many NAs by year?
 table(cfps$cyear, is.na(cfps$StringencyIndex_Average))
+
 
 # Check that province name sets now match
 sort(unique(cfps$province))

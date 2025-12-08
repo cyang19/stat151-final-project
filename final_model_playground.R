@@ -47,7 +47,7 @@ cfps <- cfps %>%
     provcd = factor(provcd),
     wave  = factor(wave),
     
-    ## Time varying covariates (example choices)
+    ## group mean centering time varying covariates (example choices)
     age_c    = scale(age, center = TRUE, scale = FALSE)[, 1],
     health_c = scale(health, center = TRUE, scale = FALSE)[, 1],
     education_c = scale(education, center = TRUE, scale = FALSE)[, 1],
@@ -125,12 +125,14 @@ model_n_wave <- lmer(
 summary(model_n_wave)
 
 
-# within provende stringency
+# within province stringency - so uses stringency score realtive to each p's own average 
 cfps_model <- cfps_model %>%
   group_by(provcd) %>%
   mutate(
     stringency_wp = StringencyIndex_Average -
-      mean(StringencyIndex_Average, na.rm = TRUE)
+      mean(StringencyIndex_Average, na.rm = TRUE), 
+    cases_wp = cumulative_confirmed -
+      mean(cumulative_confirmed, na.rm = TRUE)
   ) %>%
   ungroup()
 
@@ -187,3 +189,91 @@ model_pandemic <- lmer(
 )
 
 summary(model_pandemic)
+
+# check for correlations    
+
+cor(cfps_model$StringencyIndex_Average, cfps_model$cumulative_deceased, use = "complete.obs")
+
+# looking at effect of covid cases / deaths !   
+
+model_full_covid <- lmer(
+  cesd20 ~
+    StringencyIndex_Average +
+    cumulative_confirmed +
+    wave +                  # time / wave effects
+    age_c +
+    health_c +
+    urban +
+    gender +
+    education +
+    marital +
+    (1 | provcd) +          # province
+    (1 | cid) +             # community
+    (1 | fid) +             # family
+    (1 | pid),              # person
+  data = cfps_model,
+  REML = TRUE
+)
+
+summary(model_full_covid)
+
+# within province analysis 
+
+model_wp_covid <- lmer(
+  cesd20 ~
+    stringency_wp +
+    cases_wp + 
+    wave + age_c + health_c +
+    urban + gender + education + marital +
+    (1 | provcd) + (1 | cid) + (1 | fid) + (1 | pid),
+  data = cfps_model
+)
+
+# looking at per capita vs. raw counts : which is a better predictor? 
+
+
+model_full_covid_pc <- lmer(
+  cesd20 ~
+    StringencyIndex_Average +
+    cumulative_confirmed_per_capita +
+    wave +                  # time / wave effects
+    age_c +
+    health_c +
+    urban +
+    gender +
+    education +
+    marital +
+    (1 | provcd) +          # province
+    (1 | cid) +             # community
+    (1 | fid) +             # family
+    (1 | pid),              # person
+  data = cfps_model,
+  REML = TRUE
+)
+
+AIC(model_full_covid, model_full_covid_pc)
+
+# looking at deceased vs. confirmed cases
+
+
+model_full_covid_dec <- lmer(
+  cesd20 ~
+    StringencyIndex_Average +
+    cumulative_deceased  +
+    wave +                  # time / wave effects
+    age_c +
+    health_c +
+    urban +
+    gender +
+    education +
+    marital +
+    (1 | provcd) +          # province
+    (1 | cid) +             # community
+    (1 | fid) +             # family
+    (1 | pid),              # person
+  data = cfps_model,
+  REML = TRUE
+)
+
+AIC(model_full_covid, model_full_covid_dec)
+
