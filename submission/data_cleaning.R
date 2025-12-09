@@ -1,4 +1,40 @@
 library(dplyr)
+library(haven)
+library(foreign)
+library(tidyverse)
+
+## --------------------------------------------------
+## merges survey data years
+## --------------------------------------------------
+
+## Loading all of the data
+data_2022 <- read_dta('join_data/ecfps2022person_202410.dta')
+data_2020 <- read_dta('join_data/cfps2020person_202306.dta')
+data_2018 <- read_sas('join_data/ecfps2018person_202012.sas7bdat')
+data_2016 <- read_dta('join_data/ecfps2016adult_201906.dta')
+
+# Create a list of shared people IDs
+inner <- inner_join(data_2022, data_2020, join_by('pid'=='pid')) %>%
+  inner_join(data_2018, join_by('pid'=='PID')) %>%
+  inner_join(data_2016, join_by('pid' == 'pid'))
+shared_people <- inner$pid
+
+# Filter for only this data before binding rows
+data_2022 <- filter(data_2022, pid %in% shared_people)
+data_2020 <- filter(data_2020, pid %in% shared_people)
+data_2018 <- filter(data_2018, PID %in% shared_people)
+data_2016 <- filter(data_2016, pid %in% shared_people)
+
+# Preliminary cleaning to create wave as a cateogrical
+data_2022$releaseversion <- as.character(data_2022$releaseversion)
+data_2020$releaseversion <- as.character(data_2020$releaseversion)
+data_2018$releaseversion <- as.character(data_2018$ReleaseVersion)
+data_2016$releaseversion <- as.character(data_2016$releaseversion)
+
+# Row stacking with dplyr to create NAs where new rows are introduced.
+d <- bind_rows(data_2022, data_2018, data_2016, data_2020)
+write.csv(d, 'all_years_data_long.csv')
+
 
 ## ---------------------------------------------------
 ## takes merged survey years

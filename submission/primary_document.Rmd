@@ -1,9 +1,149 @@
 ---
-title: "primary_document"
-output: html_document
+title: "PLEASE WRITE A TITLETitle of Your Project"
+author: "Saman De Silva, Hans Elasri, Claire Yang"
+output: pdf_document
+fontsize: 11pt
+geometry: margin=1in
+header-includes:
+  - \usepackage{setspace}
+  - \usepackage{booktabs}
+  - \usepackage{float}
+  - \usepackage{amsmath, amssymb}
+  - \usepackage{graphicx}
+  - \usepackage{bm}
 ---
 
-```{r}
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  fig.pos = "H"
+)
+```
 
+
+# Introduction
+
+Briefly motivate the topic and clearly state your **research question**.
+
+* What is the substantive question?
+* Why does it matter?
+* What gap or puzzle are you addressing?
+
+Keep this **tight** — not the bulk of the manuscript.
+
+---
+
+# Data
+
+## 2.1 Data Description
+
+Describe:
+
+* Data source(s)
+* Sample size
+* Key units (e.g., individuals, schools, time points)
+* Outcome variable
+* Main predictors
+* Structure (cross-sectional, longitudinal, hierarchical)
+
+```{r}
+# Example: glimpse(data)
+# glimpse(my_data)
+```
+
+## 2.2 Descriptive Statistics (Table 1)
+
+Include a **Table 1** summarizing the data.
+
+```{r}
+# Example table code
+# library(dplyr)
+# library(knitr)
+# library(kableExtra)
+
+# my_data %>%
+#   summarize(...) %>%
+#   kable(booktabs = TRUE, digits = 2) %>%
+#   kable_styling(latex_options = "hold_position")
+```
+
+
+
+# Methods
+
+Explain **how** you answer the research question.
+
+Include:
+
+* Modeling strategy
+* Why multilevel modeling is appropriate (if applicable)
+* Fixed vs random effects
+* Key assumptions
+* Estimation approach
+
+Avoid dumping equations unless helpful — focus on interpretation.
+
+
+
+# Model
+
+asdf
+
+---
+
+# *Results
+
+## 5.1 Main Results
+
+
+
+## 5.2 Figures
+
+**Figure 1**
+
+```{r fig1, fig.cap="Figure 1: Descriptive or Model-Based Visualization"}
+# plot(...)
+```
+
+
+## 5.3 Results Table
+
+
+
+# Conclusion
+
+
+
+# **Appendix A: Model Results (Required)**
+
+
+## Model Call
+
+```{r}
+# lmer(
+#   outcome ~ predictors + (1 | group),
+#   data = my_data
+# )
+```
+
+## Model Output
+
+```{r}
+# library(arm)
+# display(model)
+```
+
+
+
+# **References**
+
+```{r, results='asis', echo=FALSE}
+# Example:
+# cat("\\begin{thebibliography}{99}")
+# cat("\\bibitem{ref1} Author. Title. Journal.")
+# cat("\\end{thebibliography}")
 ```
 
