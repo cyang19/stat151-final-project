@@ -26,14 +26,13 @@ knitr::opts_chunk$set(
 
 # Introduction
 
-Briefly motivate the topic and clearly state your **research question**.
+China’s Zero-COVID strategy relied on aggressive non-pharmaceutical interventions, including lockdowns, mass testing, mobility restrictions, and community-level quarantines that varied in intensity across provinces and over time. The policies imposed substantial and uneven constraints on daily activity, social interaction, and employment providing a natural setting to study how large-scale and persistent containment measures may have affected mental health.
 
-* What is the substantive question?
-* Why does it matter?
-* What gap or puzzle are you addressing?
+Assessing the psychological consequences of Zero-COVID is complicated by the simultaneous presence of COVID-19 morbidity and mortality, which may independently influence mental health. In addition, individuals differ in baseline levels of depression and vulnerability to stress, making cross-sectional comparisons difficult to interpret. Longitudinal data are therefore critical for isolating changes in mental health associated with evolving local conditions rather than stable individual differences.
 
-Keep this **tight** — not the bulk of the manuscript.
+In this project, we combine longitudinal data from the China Family Panel Studies (CFPS) with province-level measures of COVID-19 policy stringency from the Oxford COVID-19 Government Response Tracker and COVID-19 mortality data. Depression is measured using the CESD-20 scale. Our primary research question is whether increases in policy stringency and COVID-19 deaths are associated with changes in depressive symptoms.
 
+We study this question using multilevel longitudinal models that exploit within-individual and across-province variation over time while accounting for the hierarchical structure of the CFPS sample. This approach allows us to estimate how changes in province policy stringency and pandemic intensity relate to changes in depression, net of persistent individual characteristics and common time trends.
 ---
 
 # Data
