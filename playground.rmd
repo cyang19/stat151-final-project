@@ -81,7 +81,15 @@ cfps_model <- cfps_model %>%
     cumulative_deceased_per_capita = ifelse(is.na(cumulative_deceased_per_capita), 0, cumulative_deceased_per_capita),
   )
 
+
+cfps_model <- cfps_model %>%
+  group_by(provcd) %>%
+  mutate(n_province = n()) %>%
+  ungroup()
+
 cat("Rows used in model:", nrow(cfps_model), "\n")
+```
+```{r}
 
 ## 4. Specify multilevel model ---------------------------------------------
 ## Outcome: cesd20
@@ -267,6 +275,8 @@ model_full_covid_pc <- lmer(
 
 AIC(model_full_covid, model_full_covid_pc)
 
+summary(model_full_covid_pc)
+
 # looking at deceased vs. confirmed cases
 
 
@@ -292,4 +302,357 @@ model_full_covid_dec <- lmer(
 AIC(model_full_covid, model_full_covid_dec)
 
 summary(cfps_model$StringencyIndex_Average*as.integer(cfps_model$pandemic), na.rm=T)
+```
+```{r}
+summary(model_full_covid)
+summary(model_full_covid_pc)
+
+AIC(model_full_covid, model_full_covid_pc)
+```
+
+```{r}
+
+length(unique(cfps_model$cid))
+data_2022 <- cfps_model %>%
+  filter(wave==1)
+length(unique(data_2022$fid))
+
+
+t <- cfps_model %>%
+  group_by(pid) %>%
+  summarise(
+    n_unique_provcd = n_distinct(provcd)
+  ) %>%
+  arrange(desc(n_unique_provcd))
+
+sum(t$n_unique_provcd == 4)
+```
+
+
+```{r}
+cfps_model %>%
+  filter(provcd %in% round(runif(20, 11, 65)),
+         wave %in% c(3, 4)) %>%
+  group_by(provcd, cyear, cmonth) %>%
+  summarise(cesd20 = mean(cesd20, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(x = cmonth, y = cesd20, color = factor(cyear),
+             group = interaction(provcd, cyear))) +
+  geom_line() +
+  facet_wrap(~ provcd)
+```
+
+```{r}
+set.seed(0)
+cfps_model %>%
+  group_by(provcd) %>%
+  summarize(n=n())
+
+cfps_model %>%
+  filter(provcd %in% sample(unique(cfps$provcd), 20, replace=F),
+         n_province > 500) %>%
+  group_by(provcd, wave) %>%
+  summarize(cesd20=mean(cesd20, na.rm=T),
+            StringencyIndex_Average=mean(StringencyIndex_Average, na.rm=T)) %>%
+  ggplot(aes(y=cesd20, x=as.integer(wave))) +
+  geom_point() +
+  geom_line() +
+  facet_wrap(~provcd) +
+  labs(x="Wave",
+       y="CESD-20 Scores",
+       title="Depression by cohort over time")
+```
+
+```{r}
+prov_counts <- cfps_model %>%
+  count(provcd, name = "n_province")
+
+# Merge counts, sample 20 provinces with n > 500
+sampled_provinces <- prov_counts %>%
+  filter(n_province > 500) %>%
+  pull(provcd) %>%
+  unique() %>%
+  sample(20, replace = FALSE)
+
+df_plot <- cfps_model %>%
+  filter(provcd %in% sampled_provinces) %>%
+  group_by(provcd, wave) %>%
+  summarize(
+    cesd20 = mean(cesd20, na.rm = TRUE),
+    strg   = mean(StringencyIndex_Average, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# --- Rescale for dual axis ---
+# Compute a scaling factor
+scale_factor <- max(df_plot$cesd20, na.rm = TRUE) / 
+                max(df_plot$strg,   na.rm = TRUE)
+
+ggplot(df_plot, aes(x = as.integer(wave))) +
+  geom_line(aes(y = cesd20, color = "CESD-20")) +
+  geom_point(aes(y = cesd20, color = "CESD-20")) +
+  
+  geom_line(aes(y = strg * scale_factor, color = "Stringency")) +
+  geom_point(aes(y = strg * scale_factor, color = "Stringency")) +
+  
+  scale_y_continuous(
+    name = "CESD-20",
+    limits = c(10, 18),         # <<< set CESD scale here
+    sec.axis = sec_axis(
+      ~ . / scale_factor,
+      name = "Stringency Index"
+    )
+  ) +
+  facet_wrap(~provcd) +
+  labs(
+    x = "Wave",
+    title = "Depression & Stringency Over Time (20 Sampled Provinces)"
+  ) +
+  scale_color_manual(values = c("CESD-20" = "blue", "Stringency" = "red")) +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+```
+
+```{r}
+prov_counts <- cfps_model %>%
+  count(provcd, name = "n_province")
+
+# Sample 20 qualifying provinces
+sampled_provinces <- prov_counts %>%
+  filter(n_province > 500) %>%
+  pull(provcd) %>%
+  unique() %>%
+  sample(20, replace = FALSE)
+
+df_plot <- cfps_model %>%
+  filter(provcd %in% sampled_provinces) %>%
+  group_by(provcd, wave) %>%
+  summarize(
+    cesd20 = mean(cesd20, na.rm = TRUE),
+    strg   = mean(StringencyIndex_Average, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# ---- Compute scaling factor ----
+scale_factor <- max(df_plot$cesd20, na.rm = TRUE) / 
+                max(df_plot$strg,   na.rm = TRUE)
+
+# ---- Set desired axis limits ----
+# Depression axis (PRIMARY) should be exactly 10–18
+cesd_min <- 10
+cesd_max <- 20
+
+# Stringency axis (SECONDARY) should be 0–80
+stringency_min <- 0
+stringency_max <- 80
+
+# Convert Stringency limits to PRIMARY scale
+primary_min <- stringency_min * scale_factor
+primary_max <- stringency_max * scale_factor
+
+# Final primary axis must cover both CESD and scaled Stringency
+ymin <- min(cesd_min, primary_min)
+ymax <- max(cesd_max, primary_max)
+
+# ---- Plot ----
+ggplot(df_plot, aes(x = as.integer(wave))) +
+  geom_line(aes(y = cesd20, color = "CESD-20")) +
+  geom_point(aes(y = cesd20, color = "CESD-20")) +
+  
+  geom_line(aes(y = strg * scale_factor, color = "Stringency")) +
+  geom_point(aes(y = strg * scale_factor, color = "Stringency")) +
+  
+  scale_y_continuous(
+    name = "CESD-20 (10–20)",  # Changed from (10–18) to (10–20)
+    limits = c(ymin, ymax),
+    sec.axis = sec_axis(
+      ~ . / scale_factor,
+      name = "Stringency Index (0–80)",
+      breaks = seq(0, 80, 20),
+      labels = seq(0, 80, 20)
+    )
+  ) +
+  facet_wrap(~provcd) +
+  labs(
+    x = "Wave",
+    title = "Depression & Stringency Over Time (20 Sampled Provinces)"
+  ) +
+  scale_color_manual(values = c("CESD-20" = "blue", "Stringency" = "red")) +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+
+```
+```{r}
+cesd_min <- 10
+cesd_max <- 18
+
+stringency_min <- 0
+stringency_max <- 80
+
+rng_primary   <- cesd_max - cesd_min      # 8
+rng_secondary <- stringency_max - stringency_min  # 80
+
+eda1 <- ggplot(df_plot, aes(x = as.integer(wave))) +
+  # CESD-20 on primary axis
+  geom_line(aes(y = cesd20, color = "CESD-20")) +
+  geom_point(aes(y = cesd20, color = "CESD-20")) +
+  
+  # Stringency rescaled into 10–18
+  geom_line(aes(
+    y = cesd_min + (strg - stringency_min) * rng_primary / rng_secondary,
+    color = "Stringency"
+  )) +
+  geom_point(aes(
+    y = cesd_min + (strg - stringency_min) * rng_primary / rng_secondary,
+    color = "Stringency"
+  )) +
+  
+  scale_y_continuous(
+    name   = "CESD-20 (10–18)",
+    limits = c(cesd_min, cesd_max),
+    sec.axis = sec_axis(
+      ~ (.-cesd_min) * rng_secondary / rng_primary + stringency_min,
+      name   = "Stringency Index (0–80)",
+      breaks = seq(0, 80, 20),
+      labels = seq(0, 80, 20)
+    )
+  ) +
+  facet_wrap(~provcd, nrow=5) +
+  labs(
+    x = "Wave",
+    title = "Depression & Stringency Over Time (20 Sampled Provinces)"
+  ) +
+  scale_color_manual(values = c("CESD-20" = "blue", "Stringency" = "red")) +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+
+ggsave("plot.png", width = 10, height = 12, dpi = 300)
+```
+```{r}
+cfps_model %>%
+  filter(n_province > 500) %>%
+  ggplot(aes(x=provcd)) +
+  geom_bar()
+
+cfps_model %>%
+  group_by()
+  summarize(n=mean(StringencyIndex_Average))
+```
+
+```{r}
+library(broom)
+library(purrr)
+library(knitr)
+library(kableExtra)
+
+
+df <- read.csv("data/model_ready_data.csv")
+
+df %>%
+  group_by(provcd) %>%
+  summarize(
+    counties = n_distinct(countyid),
+    communities = n_distinct(cid),
+    families = n_distinct(fid),
+    people = n_distinct(pid),
+    cesd = mean(cesd20, na.rm = TRUE),
+    stringency = mean(StringencyIndex_Average, na.rm = TRUE),
+  ) %>%
+  slice_max(order_by = people, n = 10) %>%
+  kable(
+    digits = 2,
+    col.names = c(
+      "Province Code", "Counties", "Communities",
+      "Families", "People", "Avg CES-D", "Avg Stringency"
+    ),
+    caption = "Top 10 Provinces by Number of People"
+  )
+```
+
+```{r}
+library(gt)
+library(dplyr)
+library(gt)
+
+library(dplyr)
+library(gt)
+
+d <- df %>%
+  mutate(
+    cesd20_w3  = if_else(wave == 3, as.numeric(cesd20), NA_real_),
+    stringency_w3 = if_else(wave == 3, as.numeric(StringencyIndex_Average), NA_real_),
+    ndpc_w3 = if_else(wave == 3, as.numeric(new_confirmed_per_capita), NA_real_),
+
+    cesd20_w4  = if_else(wave == 4, as.numeric(cesd20), NA_real_),
+    stringency_w4 = if_else(wave == 4, as.numeric(StringencyIndex_Average), NA_real_),
+    ndpc_w4 = if_else(wave == 4, as.numeric(new_confirmed_per_capita), NA_real_)
+  )
+
+# 👉 This is the tibble
+t_tbl <- d %>%
+  group_by(provcd) %>%
+  summarize(
+    province_name = first(province),
+    counties    = n_distinct(countyid),
+    communities = n_distinct(cid),
+    families    = n_distinct(fid),
+    people      = n_distinct(pid),
+
+    cesd_w3       = mean(cesd20_w3, na.rm = TRUE),
+    stringency_w3 = mean(stringency_w3, na.rm = TRUE),
+    ndpc_w3       = mean(ndpc_w3, na.rm = TRUE)*100000,
+
+    cesd_w4       = mean(cesd20_w4, na.rm = TRUE),
+    stringency_w4 = mean(stringency_w4, na.rm = TRUE),
+    ndpc_w4       = mean(ndpc_w4, na.rm = TRUE)*100000
+  ) %>%
+  slice_max(order_by = people, n = 10)
+
+# 👉 This is the gt table
+t_gt <- t_tbl %>%
+  gt() %>%
+  tab_header(
+    title = "Top 10 Provinces by Number of People"
+  ) %>%
+
+  # Set LaTeX-style serif font
+  opt_table_font(
+    font = list(
+      google_font(name = "Latin Modern Roman")
+    )
+  ) %>%
+
+  fmt_number(
+    columns = c(cesd_w3, stringency_w3, ndpc_w3,
+                cesd_w4, stringency_w4, ndpc_w4),
+    decimals = 3
+  ) %>%
+  tab_spanner(
+    label = "Wave 3",
+    columns = c(cesd_w3, stringency_w3, ndpc_w3)
+  ) %>%
+  tab_spanner(
+    label = "Wave 4",
+    columns = c(cesd_w4, stringency_w4, ndpc_w4)
+  ) %>%
+  cols_label(
+    provcd = "Province Code",
+    provcd = "Province",
+    counties = "Counties",
+    communities = "Communities",
+    families = "Families",
+    people = "People",
+    cesd_w3 = "CESD",
+    stringency_w3 = "Stringency",
+    ndpc_w3 = "Cases per 100k",
+    cesd_w4 = "CESD",
+    stringency_w4 = "Stringency",
+    ndpc_w4 = "Cases per 100k"
+  )
+
+
+# Now save the gt table
+gt::gtsave(data = t_gt, filename = "summary_stats.png")
+```
+```{r}
+mean(d$ndpc_w3,na.rm=T)
 ```
