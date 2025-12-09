@@ -415,21 +415,21 @@ outside_clean <- outside %>%
     new_confirmed,
     X3month_avg_new_confirmed,
     new_deceased,
-    X3month_avg_new_confirmed,
+    X3month_avg_new_deceased,
     cumulative_confirmed,
-    X3month_avg_new_confirmed,
+    X3month_avg_cumulative_confirmed,
     cumulative_deceased,
-    X3month_avg_new_confirmed,
+    X3month_avg_cumulative_deceased,
     StringencyIndex_Average,
     X3month_avg_StringencyIndex_Average,
     new_confirmed_per_capita,
-    X3month_avg_new_confirmed,
+    X3month_avg_new_confirmed_per_capita,
     new_deceased_per_capita,
-    X3month_avg_new_confirmed,
+    X3month_avg_new_deceased_per_capita,
     cumulative_confirmed_per_capita,
-    X3month_avg_new_confirmed,
+    X3month_avg_cumulative_confirmed_per_capita,
     cumulative_deceased_per_capita,
-    X3month_avg_new_confirmed
+    X3month_avg_cumulative_deceased_per_capita
   )
 
 ## marges the survey and outside data 
