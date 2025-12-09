@@ -3,6 +3,7 @@
 
 library(dplyr)
 library(lme4)
+library(arm)
 library(lmerTest)
 
 ## load merged data ------------------------------------------------------
@@ -65,6 +66,19 @@ cfps_model <- cfps %>%
     !is.na(cesd20),
     !is.na(StringencyIndex_Average),
     !is.na(wave)
+  )
+
+## Imputing 0 for NA in public health metrics
+cfps_model <- cfps_model %>%
+  mutate(
+    new_confirmed = ifelse(is.na(new_confirmed), 0, new_confirmed),
+    new_deceased = ifelse(is.na(new_deceased), 0, new_deceased),
+    cumulative_confirmed = ifelse(is.na(cumulative_confirmed), 0, cumulative_confirmed),
+    cumulative_deceased = ifelse(is.na(cumulative_deceased), 0, cumulative_deceased),
+    new_confirmed_per_capita = ifelse(is.na(new_confirmed_per_capita), 0, new_confirmed_per_capita),
+    new_deceased_per_capita = ifelse(is.na(new_deceased_per_capita), 0, new_deceased_per_capita),
+    cumulative_confirmed_per_capita = ifelse(is.na(cumulative_confirmed_per_capita), 0, cumulative_confirmed_per_capita),
+    cumulative_deceased_per_capita = ifelse(is.na(cumulative_deceased_per_capita), 0, cumulative_deceased_per_capita),
   )
 
 cat("Rows used in model:", nrow(cfps_model), "\n")
@@ -277,3 +291,4 @@ model_full_covid_dec <- lmer(
 
 AIC(model_full_covid, model_full_covid_dec)
 
+summary(cfps_model$StringencyIndex_Average*as.integer(cfps_model$pandemic), na.rm=T)

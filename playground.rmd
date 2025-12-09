@@ -1,0 +1,295 @@
+```{r}
+## packages
+
+library(dplyr)
+library(lme4)
+library(arm)
+library(lmerTest)
+
+## load merged data ------------------------------------------------------
+cfps <- read.csv("data/final_merged_data.csv",
+                 stringsAsFactors = FALSE)
+
+## Handle CFPS missing code (-8) in covariates
+
+# List of covariates used in the model where -8 means missing
+covariates_with_missing_codes <- c(
+  "age",
+  "health",
+  "education",
+  "gender",
+  "marital",
+  "urban"
+)
+
+# Drop rows with -8 in any of these covariates
+cfps <- cfps %>%
+  filter(
+    !if_any(
+      all_of(covariates_with_missing_codes),
+      ~ .x == -8
+    )
+  )
+
+## Quick sanity check
+cat("Rows:", nrow(cfps), "  Cols:", ncol(cfps), "\n")
+str(cfps[, c("pid", "fid", "cid", "provcd", "cyear", "cmonth",
+             "cesd20", "StringencyIndex_Average")])
+
+
+
+## variable types --------------------------------------
+## IDs as factors for random effects
+cfps <- cfps %>%
+  mutate(
+    pid   = factor(pid),
+    fid   = factor(fid),
+    cid   = factor(cid),
+    provcd = factor(provcd),
+    wave  = factor(wave),
+    
+    ## group mean centering time varying covariates (example choices)
+    age_c    = scale(age, center = TRUE, scale = FALSE)[, 1],
+    health_c = scale(health, center = TRUE, scale = FALSE)[, 1],
+    education_c = scale(education, center = TRUE, scale = FALSE)[, 1],
+    
+    ## Time-invariant-ish covariates as factors
+    gender    = factor(gender),
+    education = factor(education),
+    marital   = factor(marital),
+    urban     = factor(urban)
+  )
+
+## restrict to rows with non-missing treatment and outcome -------
+cfps_model <- cfps %>%
+  filter(
+    !is.na(cesd20),
+    !is.na(StringencyIndex_Average),
+    !is.na(wave)
+  )
+
+## Imputing 0 for NA in public health metrics
+cfps_model <- cfps_model %>%
+  mutate(
+    new_confirmed = ifelse(is.na(new_confirmed), 0, new_confirmed),
+    new_deceased = ifelse(is.na(new_deceased), 0, new_deceased),
+    cumulative_confirmed = ifelse(is.na(cumulative_confirmed), 0, cumulative_confirmed),
+    cumulative_deceased = ifelse(is.na(cumulative_deceased), 0, cumulative_deceased),
+    new_confirmed_per_capita = ifelse(is.na(new_confirmed_per_capita), 0, new_confirmed_per_capita),
+    new_deceased_per_capita = ifelse(is.na(new_deceased_per_capita), 0, new_deceased_per_capita),
+    cumulative_confirmed_per_capita = ifelse(is.na(cumulative_confirmed_per_capita), 0, cumulative_confirmed_per_capita),
+    cumulative_deceased_per_capita = ifelse(is.na(cumulative_deceased_per_capita), 0, cumulative_deceased_per_capita),
+  )
+
+cat("Rows used in model:", nrow(cfps_model), "\n")
+
+## 4. Specify multilevel model ---------------------------------------------
+## Outcome: cesd20
+## Key treatment: StringencyIndex_Average (province-month)
+## Time-varying individual covariates Z_tifcp: age_c, health_c, urban, wave
+## Time-invariant individual covariates X_ifcp: gender, education, marital
+## Random intercepts: province, community, family, person
+
+## This corresponds to:
+## y_tifcp = β0
+##           + β1 * StringencyIndex_Average_pt
+##           + β_Z' * Z_tifcp
+##           + β_X' * X_ifcp
+##           + u_p + u_cp + u_fcp + u_ifcp + ε_tifcp
+
+model_full <- lmer(
+  cesd20 ~
+    StringencyIndex_Average +
+    wave +                  # time / wave effects
+    age_c +
+    health_c +
+    urban +
+    gender +
+    education +
+    marital +
+    (1 | provcd) +          # province
+    (1 | cid) +             # community
+    (1 | fid) +             # family
+    (1 | pid),              # person
+  data = cfps_model,
+  REML = TRUE
+)
+
+## 5. Inspect results -------------------------------------------------------
+summary(model_full)
+
+## Variance decomposition (ICCs-ish)
+VarCorr(model_full)
+
+## 6. save model object -----------------------------------------
+# saveRDS(model_full, file = "output/model_full_lmer.rds")
+
+
+
+# without wave model
+model_n_wave <- lmer(
+  cesd20 ~
+    StringencyIndex_Average +
+    age_c + health_c +
+    urban + gender + education + marital +
+    (1 | provcd) + (1 | cid) + (1 | fid) + (1 | pid),
+  data = cfps_model
+)
+
+summary(model_n_wave)
+
+
+# within province stringency - so uses stringency score realtive to each p's own average 
+cfps_model <- cfps_model %>%
+  group_by(provcd) %>%
+  mutate(
+    stringency_wp = StringencyIndex_Average -
+      mean(StringencyIndex_Average, na.rm = TRUE), 
+    cases_wp = cumulative_confirmed -
+      mean(cumulative_confirmed, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+model_wp <- lmer(
+  cesd20 ~
+    stringency_wp +
+    wave + age_c + health_c +
+    urban + gender + education + marital +
+    (1 | provcd) + (1 | cid) + (1 | fid) + (1 | pid),
+  data = cfps_model
+)
+
+summary(model_wp)
+
+
+# stringency interacted with wave
+model_int <- lmer(
+  cesd20 ~
+    StringencyIndex_Average * wave +
+    age_c + health_c +
+    urban + gender + education + marital +
+    (1 | provcd) + (1 | cid) + (1 | fid) + (1 | pid),
+  data = cfps_model
+)
+
+summary(model_int)
+
+
+# pandemic instead of waves
+cfps_model <- cfps_model %>%
+  mutate(
+    pandemic = ifelse(wave %in% c("3", "4"), 1, 0),
+    pandemic = factor(pandemic)
+  )
+
+model_pandemic_int <- lmer(
+  cesd20 ~
+    pandemic * StringencyIndex_Average +
+    wave + age_c + health_c +
+    urban + gender + education + marital +
+    (1 | provcd) + (1 | cid) + (1 | fid) + (1 | pid),
+  data = cfps_model
+)
+
+summary(model_pandemic_int)
+
+model_pandemic <- lmer(
+  cesd20 ~
+    pandemic +
+    wave + age_c + health_c +
+    urban + gender + education + marital +
+    (1 | provcd) + (1 | cid) + (1 | fid) + (1 | pid),
+  data = cfps_model
+)
+
+summary(model_pandemic)
+
+# check for correlations    
+
+cor(cfps_model$StringencyIndex_Average, cfps_model$cumulative_deceased, use = "complete.obs")
+
+# looking at effect of covid cases / deaths !   
+
+model_full_covid <- lmer(
+  cesd20 ~
+    StringencyIndex_Average +
+    cumulative_confirmed +
+    wave +                  # time / wave effects
+    age_c +
+    health_c +
+    urban +
+    gender +
+    education +
+    marital +
+    (1 | provcd) +          # province
+    (1 | cid) +             # community
+    (1 | fid) +             # family
+    (1 | pid),              # person
+  data = cfps_model,
+  REML = TRUE
+)
+
+summary(model_full_covid)
+
+# within province analysis 
+
+model_wp_covid <- lmer(
+  cesd20 ~
+    stringency_wp +
+    cases_wp + 
+    wave + age_c + health_c +
+    urban + gender + education + marital +
+    (1 | provcd) + (1 | cid) + (1 | fid) + (1 | pid),
+  data = cfps_model
+)
+
+# looking at per capita vs. raw counts : which is a better predictor? 
+
+
+model_full_covid_pc <- lmer(
+  cesd20 ~
+    StringencyIndex_Average +
+    cumulative_confirmed_per_capita +
+    wave +                  # time / wave effects
+    age_c +
+    health_c +
+    urban +
+    gender +
+    education +
+    marital +
+    (1 | provcd) +          # province
+    (1 | cid) +             # community
+    (1 | fid) +             # family
+    (1 | pid),              # person
+  data = cfps_model,
+  REML = TRUE
+)
+
+AIC(model_full_covid, model_full_covid_pc)
+
+# looking at deceased vs. confirmed cases
+
+
+model_full_covid_dec <- lmer(
+  cesd20 ~
+    StringencyIndex_Average +
+    cumulative_deceased  +
+    wave +                  # time / wave effects
+    age_c +
+    health_c +
+    urban +
+    gender +
+    education +
+    marital +
+    (1 | provcd) +          # province
+    (1 | cid) +             # community
+    (1 | fid) +             # family
+    (1 | pid),              # person
+  data = cfps_model,
+  REML = TRUE
+)
+
+AIC(model_full_covid, model_full_covid_dec)
+
+summary(cfps_model$StringencyIndex_Average*as.integer(cfps_model$pandemic), na.rm=T)
+```

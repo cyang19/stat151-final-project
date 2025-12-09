@@ -87,7 +87,11 @@ stringency_clean <- stringency %>%
     new_confirmed_per_capita,
     new_deceased_per_capita,
     cumulative_confirmed_per_capita,
-    cumulative_deceased_per_capita
+    cumulative_deceased_per_capita,
+    new_confirmed,
+    new_deceased,
+    cumulative_confirmed,
+    cumulative_deceased
   )
 
 
@@ -149,3 +153,4 @@ write.csv(
   file = "data/final_merged_data.csv",
   row.names = FALSE
 )
+
