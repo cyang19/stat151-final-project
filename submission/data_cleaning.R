@@ -33,7 +33,7 @@ data_2016$releaseversion <- as.character(data_2016$releaseversion)
 
 # Row stacking with dplyr to create NAs where new rows are introduced.
 d <- bind_rows(data_2022, data_2018, data_2016, data_2020)
-write.csv(d, 'all_years_data_long.csv')
+write.csv(d, 'data/all_years_data_long.csv')
 
 
 ## ---------------------------------------------------
