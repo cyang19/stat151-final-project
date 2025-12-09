@@ -129,7 +129,7 @@ var_groups <- list(
   cesd8        = c("cesd8", "CESD8"),
   
   ## core covariates
-  age          = c("age", "AGE", "CFPS_AGE", "Age"),
+  age          = c("age", "AGE", "CFPS_AGE", "Age", "cfps_age"),
   gender       = c("gender", "GENDER", "CFPS_GENDER", "Gender"),
   education    = c("EDU_LAST", "edu_last"),
   urban        = c("urban22", "urban20", "urban16", "urban18","URBAN22", "URBAN20", "URBAN16", "URBAN18"),
