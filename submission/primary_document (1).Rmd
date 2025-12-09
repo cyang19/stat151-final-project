@@ -379,6 +379,9 @@ ggplot(plot_long,
 
 
 
+Our research has several limitations, primarily in regards to our data. First, numerous reports have suggested China’s official COVID-19 data is unreliable and under-reported. This compromise in data integrity would certainly cast doubt on our model results, as an increased case/death count could change the effect size. Additionally, survey times were not standardized within years, so our data does fully not capture the onset of either waves of lockdowns, and thus we only observe a small snapshot of variance of public health and stringency. For future work, we also hope to explore the effect of COVID-19 on mental health outcomes through an economic lens, such as GDP or unemployment (we were unfortunately missing data of the needed granularity). Furthermore, since our research yielded the unintuitive result that stringency doesn’t explain mental health outcomes within waves, we would hope to explore which features do explain this variance.  
+
+
 # **Appendix A: Model Results (Required)**
 
 
