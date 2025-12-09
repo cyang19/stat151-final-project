@@ -413,14 +413,23 @@ outside_clean <- outside %>%
     cyear                     = year,
     cmonth                    = month_num,
     new_confirmed,
+    X3month_avg_new_confirmed,
     new_deceased,
+    X3month_avg_new_confirmed,
     cumulative_confirmed,
+    X3month_avg_new_confirmed,
     cumulative_deceased,
-    StringencyIndex_Average, 
+    X3month_avg_new_confirmed,
+    StringencyIndex_Average,
+    X3month_avg_StringencyIndex_Average,
     new_confirmed_per_capita,
+    X3month_avg_new_confirmed,
     new_deceased_per_capita,
+    X3month_avg_new_confirmed,
     cumulative_confirmed_per_capita,
-    cumulative_deceased_per_capita
+    X3month_avg_new_confirmed,
+    cumulative_deceased_per_capita,
+    X3month_avg_new_confirmed
   )
 
 ## marges the survey and outside data 
