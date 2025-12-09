@@ -1,5 +1,6 @@
 ---
-title: "PLEASE WRITE A TITLETitle of Your Project"
+title: "Modeling COVID-19 Effects on 
+Mental Health Outcomes in China"
 author: "Saman De Silva, Hans Elasri, Claire Yang"
 output: pdf_document
 fontsize: 11pt
@@ -45,6 +46,10 @@ Data on COVID-19 cases and deaths come from the Center for Systems Science and E
 \textbf{Policy Stringency Data}
 
 Measures of COVID-19 containment policy severity are drawn from the Oxford COVID-19 Government Response Tracker (OxCGRT). We use the Oxford Stringency Index, which summarizes the intensity of these policies on a standardized scale (Hale et al., 2021). Monthly averages of the stringency index are constructed to align with the CFPS survey timing.
+
+
+
+
 
 # Methods
 
@@ -142,7 +147,7 @@ To assess the robustness of the baseline results, we estimate several extensions
 
 Figure 1 illustrates mean CESD-20 scores by survey wave. Depression levels increase sharply between the pre-pandemic and post-pandemic waves, highlighting a substantial rise in reported depressive symptoms over time. Consistent with the regression results, this figure underscores that observed changes in depression are primarily associated with broad temporal shifts rather than differential exposure to local pandemic policies or mortality intensity.
 
-```{r}
+```{r fig1, fig.cap="Mean CESD-20 depression scores by survey wave"}
 ## figure 1: mean CESD-20 by survey wave after controls
 
 library(dplyr)
@@ -204,7 +209,7 @@ ggplot(wave_summary, aes(x = wave, y = mean_cesd, group = 1)) +
 
 Taken together, the results indicate that, conditional on controls and fixed effects, we do not find evidence of a statistically significant association between province-level COVID-19 policy stringency or COVID-19 mortality and individual depressive symptoms. We defer discussion of potential explanations and implications of these findings to the conclusion.
 
-```{r}
+```{r fig2, fig.cap="Actual and predicted CESD-20 trajectories for a random sample of individuals"}
 ## --------------------------------------------------
 ## Figure 2: Actual vs Predicted Individual Trajectories
 ## --------------------------------------------------
