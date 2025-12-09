@@ -377,6 +377,15 @@ ggplot(plot_long,
 
 # Conclusion
 
+Across all specifications, we do not find a statistically significant association between COVID-19 policy stringency or COVID-19 mortality and depressive symptoms after accounting for individual characteristics and the hierarchical structure of the data. These null results persist across model extensions, including interactions, within-province variation, and random slopes, suggesting that the findings are not driven by a particular modeling choice.
+
+These results should be interpreted with caution given several limitations. Although the CFPS is longitudinal, survey observations are clustered in a small number of months within each wave. Major changes in China’s COVID-19 policies did not necessarily occur during these survey periods, limiting our ability to detect mental health responses to evolving policy conditions. As a result, meaningful variation in exposure may be poorly aligned with measurement of depressive symptoms.
+
+In addition, the analytic sample is subject to selection and attrition concerns. Individuals who die—whether from COVID-19, suicide, or other causes—are necessarily excluded from later waves, and survey attrition may be correlated with worsening mental health. Both mechanisms could bias estimated effects toward zero.
+
+An additional limitation is the potential unreliability of official COVID-19 data in China, as government involvement in data collection and reporting may create incentives to systematically underreport cases or deaths, introducing measurement error in key treatment variables.
+
+Future work would benefit from more temporally granular mental health data that span the full calendar year. Finer measurement would allow for tighter alignment between policy changes and psychological outcomes, and would enable better identification of cumulative and potentially lagged mental health effects of prolonged public health interventions.
 
 
 # **Appendix A: Model Results (Required)**
