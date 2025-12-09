@@ -1,0 +1,99 @@
+library(dplyr)
+library(lme4)
+library(lmerTest)
+
+cfps <- read.csv("data/model_ready_data.csv",
+                 stringsAsFactors = FALSE)
+
+cfps <- cfps %>%
+  mutate(
+    pid   = factor(pid),
+    fid   = factor(fid),
+    cid   = factor(cid),
+    provcd = factor(provcd),
+    wave  = factor(wave),
+    
+    ## group mean centering time varying covariates (example choices)
+    age_c    = scale(age, center = TRUE, scale = FALSE)[, 1],
+    health_c = scale(health, center = TRUE, scale = FALSE)[, 1],
+
+    ## Time-invariant-ish covariates as factors
+    gender    = factor(gender),
+    education = factor(education),
+    marital   = factor(marital),
+    urban     = factor(urban)
+  )
+
+## variables to zero-fill in pre-COVID waves
+pre_covid_zero_vars <- c(
+  "new_confirmed",
+  "X3month_avg_new_confirmed",
+  "new_deceased",
+  "X3month_avg_new_deceased",
+  "cumulative_confirmed",
+  "X3month_avg_cumulative_confirmed",
+  "cumulative_deceased",
+  "X3month_avg_cumulative_deceased",
+  "StringencyIndex_Average",
+  "X3month_avg_StringencyIndex_Average",
+  "new_confirmed_per_capita",
+  "X3month_avg_new_confirmed_per_capita",
+  "new_deceased_per_capita",
+  "X3month_avg_new_deceased_per_capita",
+  "cumulative_confirmed_per_capita",
+  "X3month_avg_cumulative_confirmed_per_capita",
+  "cumulative_deceased_per_capita",
+  "X3month_avg_cumulative_deceased_per_capita"
+)
+
+## only keep variables that actually exist in the data
+pre_covid_zero_vars <- intersect(pre_covid_zero_vars, names(cfps))
+
+## replace NA with 0 for wave 1 & 2 only
+cfps <- cfps %>%
+  mutate(
+    across(
+      all_of(pre_covid_zero_vars),
+      ~ ifelse(wave %in% c(1, 2) & is.na(.), 0, .)
+    )
+  )
+
+
+## restrict to rows with non-missing treatment and outcome -------
+cfps_model <- cfps %>%
+  filter(
+    !is.na(cesd20),
+    !is.na(X3month_avg_StringencyIndex_Average),
+    !is.na(X3month_avg_new_deceased_per_capita),
+    !is.na(wave)
+  )
+
+model_full <- lmer(
+  cesd20 ~
+    X3month_avg_StringencyIndex_Average +
+    X3month_avg_new_deceased_per_capita +
+    wave +                  
+    age_c +
+    health_c +
+    urban +
+    gender +
+    education +
+    marital +
+    (1 | provcd) +          # province
+    (1 | cid) +             # community
+    (1 | fid) +             # family
+    (1 | pid),              # person
+  data = cfps_model,
+  REML = TRUE
+)
+
+summary(model_full)
+
+# interact with 4th wave
+
+# take out wave
+
+# within provence
+
+# random slope stringency
+

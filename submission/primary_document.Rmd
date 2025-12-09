@@ -23,6 +23,44 @@ knitr::opts_chunk$set(
 )
 ```
 
+
+```{r}
+library(dplyr)
+
+# 1. Load data
+cfps_model <- read.csv("data/model_ready_data.csv")
+
+# 2. Core summary stats
+core_counts <- cfps_model %>%
+  summarise(
+    n_obs         = n(),                # total person-wave observations
+    n_individuals = n_distinct(pid),   # unique people
+    n_families    = n_distinct(fid),   # unique families
+    n_communities = n_distinct(cid),   # unique communities
+    n_provinces   = n_distinct(provcd) # unique provinces
+  )
+
+core_counts
+
+
+# Make sure EDU_LAST exists
+stopifnot("education" %in% names(cfps_model))
+
+# Convert to numeric (defensive, in case read.csv made it character)
+cfps_model <- cfps_model %>%
+  mutate(education = as.numeric(education))
+
+# Unique EDU_LAST values (sorted)
+sort(unique(cfps_model$education))
+
+# Distribution of EDU_LAST (including missing)
+table(cfps_model$education, useNA = "ifany")
+
+# Missingness rate for EDU_LAST
+mean(is.na(cfps_model$education))
+```
+
+
 # Introduction
 
 China’s Zero-COVID strategy relied on aggressive non-pharmaceutical interventions, including lockdowns, mass testing, mobility restrictions, and community-level quarantines that varied in intensity across provinces and over time. The policies imposed substantial and uneven constraints on daily activity, social interaction, and employment providing a natural setting to study how large-scale and persistent containment measures may have affected mental health.
@@ -73,6 +111,11 @@ Avoid dumping equations unless helpful — focus on interpretation.
 # Model
 
 asdf
+
+```{r}
+
+```
+
 
 ---
 
