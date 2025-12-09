@@ -11,15 +11,9 @@ library(tidyverse)
 ```{r}
 ## Loading all of the data
 data_2022 <- read_dta('join_data/ecfps2022person_202410.dta')
-
 data_2020 <- read_dta('join_data/cfps2020person_202306.dta')
-data_2020_crosser <- read_dta('join_data/cfps2020crossyearid_202312.dta')
-
 data_2018 <- read_sas('join_data/ecfps2018person_202012.sas7bdat')
-data_2018_crosser <- read_sas('join_data/ecfps2018crossyearid_202104.sas7bdat')
-
 data_2016 <- read_dta('join_data/ecfps2016adult_201906.dta')
-data_2016_crosser <- read_dta('join_data/ecfps2016crossyearid_201807.dta')
 
 # Create a list of shared people IDs
 inner <- inner_join(data_2022, data_2020, join_by('pid'=='pid')) %>%
