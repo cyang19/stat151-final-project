@@ -2,6 +2,7 @@
 title: "Modeling COVID-19 Effects on 
 Mental Health Outcomes in China"
 author: "Saman De Silva, Hans Elasri, Claire Yang"
+subtitle: "WORD COUNT: 1591"
 output: pdf_document
 fontsize: 11pt
 geometry: margin=1in
@@ -23,6 +24,10 @@ knitr::opts_chunk$set(
   fig.align = "center",
   fig.pos = "H"
 )
+
+library(dplyr)
+library(ggplot2)
+library(gt)
 ```
 \doublespacing
 # Introduction
@@ -31,13 +36,73 @@ China’s Zero-COVID strategy relied on aggressive non-pharmaceutical interventi
 
 Assessing the psychological consequences of Zero-COVID is complicated by the simultaneous presence of COVID-19 morbidity and mortality, which may independently influence mental health. In addition, individuals differ in baseline levels of depression and vulnerability to stress, making cross-sectional comparisons difficult to interpret. Longitudinal data are therefore critical for isolating changes in mental health associated with evolving local conditions rather than stable individual differences.
 
-We study this question using multilevel longitudinal models that exploit within-individual and across-province variation over time while accounting for the hierarchical structure of the CFPS sample. This approach allows us to estimate how changes in province policy stringency and pandemic intensity relate to changes in depression, net of persistent individual characteristics and common time trends.
+We study this question using multilevel longitudinal models that exploit within-individual and across-province variation over time while accounting for the hierarchical structure of the CFPS sample. \textbf{This approach allows us to estimate how changes in province policy stringency and pandemic intensity relate to changes in depression, net of persistent individual characteristics and common time trends.}
 
 # Data
 
 \textbf{China Family Panel Studies (CFPS)}
 
-Individual-level mental health and demographic data come from the China Family Panel Studies (CFPS), a nationally representative, biennial longitudinal survey administered by the Institute of Social Science Survey at Peking University. The CFPS tracks individuals, families, and communities across China and collects detailed information on health, economic conditions, education, and family structure. We use four survey waves: 2016, 2018, 2020, and 2022. After cleaning and merging with province-level pandemic data, the final analytical sample consists of 51,224 person-wave observations covering 12,806 individuals, 7,770 families, and 3,318 communities across 33 provinces. Depression is measured using the CESD-20 scale, which captures the frequency of depressive symptoms over the past week. 
+Individual-level mental health and demographic data come from the China Family Panel Studies (CFPS), a nationally representative, biennial longitudinal survey administered by the Institute of Social Science Survey at Peking University. The CFPS tracks individuals, families, and communities across China and collects detailed information on health, economic conditions, education, and family structure. We use four survey waves as our unit of time: 2016, 2018, 2020, and 2022. After cleaning and merging with province-level pandemic data, the final analytical sample consists of 51,224 person-wave observations covering 12,806 individuals, 7,770 families, and 3,318 communities across 33 provinces. Depression is measured using the CESD-20 scale, which captures the frequency of depressive symptoms over the past week. 
+
+```{r}
+# load data
+cfps <- read.csv("data/model_ready_data.csv",
+                 stringsAsFactors = FALSE)
+
+d <- cfps %>%
+  mutate(
+    cesd20_w3  = if_else(wave == 3, as.numeric(cesd20), NA_real_),
+    stringency_w3 = if_else(wave == 3, as.numeric(StringencyIndex_Average), NA_real_),
+    ndpc_w3 = if_else(wave == 3, as.numeric(new_confirmed_per_capita), NA_real_),
+
+    cesd20_w4  = if_else(wave == 4, as.numeric(cesd20), NA_real_),
+    stringency_w4 = if_else(wave == 4, as.numeric(StringencyIndex_Average), NA_real_),
+    ndpc_w4 = if_else(wave == 4, as.numeric(new_confirmed_per_capita), NA_real_)
+  )
+
+t_tbl <- d %>%
+  group_by(provcd) %>%
+  summarize(
+    province_name = first(province),
+    communities = n_distinct(cid),
+    families    = n_distinct(fid),
+    people      = n_distinct(pid),
+
+    # combine wave 3 and 4 into one "treated" value
+    cesd_treated       = mean(c(cesd20_w3, cesd20_w4), na.rm = TRUE),
+    stringency_treated = mean(c(stringency_w3, stringency_w4), na.rm = TRUE),
+    ndpc_treated       = mean(c(ndpc_w3, ndpc_w4), na.rm = TRUE) * 100000
+  ) %>%
+  slice_max(order_by = people, n = 10)
+
+t_tbl %>%
+  gt() %>%
+  tab_header(
+    title = "Top 10 Provinces by Number of People"
+  ) %>%
+  opt_table_font(
+    font = list(google_font(name = "Latin Modern Roman"))
+  ) %>%
+  fmt_number(
+    columns = c(cesd_treated, stringency_treated, ndpc_treated),
+    decimals = 3
+  ) %>%
+  tab_spanner(
+    label = "Post-COVID",
+    columns = c(cesd_treated, stringency_treated, ndpc_treated)
+  ) %>%
+  cols_label(
+    provcd = "ID",
+    province_name = "Name",
+    communities = "Communities",
+    families = "Families",
+    people = "People",
+    cesd_treated = "CESD",
+    stringency_treated = "Stringency",
+    ndpc_treated = "Cases per 100k"
+  )
+
+```
 
 \textbf{COVID-19 Mortality Data}
 
@@ -48,8 +113,83 @@ Data on COVID-19 cases and deaths come from the Center for Systems Science and E
 Measures of COVID-19 containment policy severity are drawn from the Oxford COVID-19 Government Response Tracker (OxCGRT). We use the Oxford Stringency Index, which summarizes the intensity of these policies on a standardized scale (Hale et al., 2021). Monthly averages of the stringency index are constructed to align with the CFPS survey timing.
 
 
+```{r}
+cfps <- cfps %>%
+  group_by(provcd) %>%
+  mutate(n_province = n()) %>%
+  ungroup()
+
+prov_counts <- cfps %>%
+  count(provcd, name = "n_province")
 
 
+# Sample 20 qualifying provinces
+sampled_provinces <- prov_counts %>%
+  filter(n_province > 250) %>%
+  pull(provcd) %>%
+  unique() %>%
+  sample(20, replace = FALSE)
+
+df_plot <- cfps %>%
+  filter(provcd %in% sampled_provinces) %>%
+  group_by(provcd, wave) %>%
+  summarize(
+    cesd20 = mean(cesd20, na.rm = TRUE),
+    strg   = mean(StringencyIndex_Average, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# ---- Compute scaling factor ----
+scale_factor <- max(df_plot$cesd20, na.rm = TRUE) / 
+                max(df_plot$strg,   na.rm = TRUE)
+
+# ---- Set desired axis limits ----
+# Depression axis (PRIMARY) should be exactly 10–18
+cesd_min <- 10
+cesd_max <- 20
+
+# Stringency axis (SECONDARY) should be 0–80
+stringency_min <- 0
+stringency_max <- 80
+
+# Convert Stringency limits to PRIMARY scale
+primary_min <- stringency_min * scale_factor
+primary_max <- stringency_max * scale_factor
+
+# Final primary axis must cover both CESD and scaled Stringency
+ymin <- min(cesd_min, primary_min)
+ymax <- max(cesd_max, primary_max)
+
+# ---- Plot ----
+ggplot(df_plot, aes(x = as.integer(wave))) +
+  geom_line(aes(y = cesd20, color = "CESD-20")) +
+  geom_point(aes(y = cesd20, color = "CESD-20")) +
+  
+  geom_line(aes(y = strg * scale_factor, color = "Stringency")) +
+  geom_point(aes(y = strg * scale_factor, color = "Stringency")) +
+  
+  scale_y_continuous(
+    name = "CESD-20 (10–20)",  # Changed from (10–18) to (10–20)
+    limits = c(ymin, ymax),
+    sec.axis = sec_axis(
+      ~ . / scale_factor,
+      name = "Stringency Index (0–80)",
+      breaks = seq(0, 80, 20),
+      labels = seq(0, 80, 20)
+    )
+  ) +
+  facet_wrap(~provcd) +
+  labs(
+    x = "Wave",
+    title = "Depression & Stringency Over Time (20 Sampled Provinces)"
+  ) +
+  scale_color_manual(values = c("CESD-20" = "blue", "Stringency" = "red")) +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+
+```
+
+The figure above maps stringency over wave onto depression.
 
 # Methods
 
@@ -105,7 +245,7 @@ At Level 2, $\mathbf{X}_{ifcp}$ contains time-invariant or slow-moving individua
 ---
 
 # Results
-Table 1 reports estimates from our baseline multilevel model relating province-level COVID-19 policy stringency and COVID-19 deaths per capita to individual depressive symptoms. After adjusting for survey wave fixed effects, individual-level controls, and random intercepts at the person, family, community, and province levels, neither policy stringency nor COVID-19 mortality is significantly associated with CESD-20 scores. The estimated coefficients on both treatment variables are small in magnitude and statistically indistinguishable from zero.
+Table 1 reports estimates from our baseline multilevel model relating province-level COVID-19 policy stringency and COVID-19 deaths per capita to individual depressive symptoms. After adjusting for survey wave fixed effects, individual-level controls, and random intercepts at the person, family, community, and province levels, neither policy stringency nor COVID-19 mortality is significantly associated with CESD-20 scores. The estimated coefficients on both treatment variables are small in magnitude and statistically indistinguishable from zero. (See Appendix Item A.)
 
 \begin{table}[ht]
 \centering
@@ -143,19 +283,12 @@ marital5 & 3.69 & 0.35 & 16864.0 & 10.53 & $<$0.001 \\
 
 By contrast, survey wave indicators are strongly associated with depressive symptoms. Relative to the pre-pandemic 2016 baseline wave, depression scores significantly increase monotonically across subsequent waves, with particularly large increases observed in the 2020 and 2022 survey waves. These patterns are consistent across all model specifications we consider.
 
-To assess the robustness of the baseline results, we estimate several extensions of the model. First, we allow the effect of policy stringency to differ in the final survey wave by interacting stringency with a wave-4 indicator. This interaction term is not statistically significant, and the main effect of stringency remains close to zero. Second, we remove survey wave fixed effects; while the stringency coefficient becomes statistically significant in this specification, the estimate is no longer robust once wave indicators are reintroduced, indicating that this relationship is driven by aggregate time trends rather than within-wave variation. Third, we restrict identification to within-province variation in stringency after 2020 by demeaning stringency at the province level; the resulting estimate remains statistically insignificant. Finally, we allow the effect of stringency to vary across provinces by including a random slope for stringency at the province level. The average stringency effect remains statistically insignificant, and estimated cross-province heterogeneity in the stringency slope is limited.
+To assess the robustness of the baseline results, we estimate several extensions of the model. First, we allow the effect of policy stringency to differ in the final survey wave by interacting stringency with a wave-4 indicator. This interaction term is not statistically significant, and the main effect of stringency remains close to zero. Second, we remove survey wave fixed effects; while the stringency coefficient becomes statistically significant in this specification, the estimate is no longer robust once wave indicators are reintroduced, indicating that this relationship is driven by aggregate time trends rather than within-wave variation. Third, we restrict identification to within-province variation in stringency after 2020 by demeaning stringency at the province level; the resulting estimate remains statistically insignificant. Finally, we allow the effect of stringency to vary across provinces by including a random slope for stringency at the province level. The average stringency effect remains statistically insignificant, and estimated cross-province heterogeneity in the stringency slope is limited. (See Appendix Item B.)
 
 Figure 1 illustrates mean CESD-20 scores by survey wave. Depression levels increase sharply between the pre-pandemic and post-pandemic waves, highlighting a substantial rise in reported depressive symptoms over time. Consistent with the regression results, this figure underscores that observed changes in depression are primarily associated with broad temporal shifts rather than differential exposure to local pandemic policies or mortality intensity.
 
 ```{r fig1, fig.cap="Mean CESD-20 depression scores by survey wave"}
 ## figure 1: mean CESD-20 by survey wave after controls
-
-library(dplyr)
-library(ggplot2)
-
-## Load data
-cfps <- read.csv("data/model_ready_data.csv",
-                 stringsAsFactors = FALSE)
 
 ## Keep analysis sample consistent with models
 cfps_fig <- cfps %>%
@@ -206,6 +339,7 @@ ggplot(wave_summary, aes(x = wave, y = mean_cesd, group = 1)) +
   )
 ```
 
+Figure 2 compares observed and model-predicted CESD-20 trajectories for a random sample of individuals, showing that predictions primarily reflect overall time trends rather than individual-specific responses to local pandemic conditions.
 
 Taken together, the results indicate that, conditional on controls and fixed effects, we do not find evidence of a statistically significant association between province-level COVID-19 policy stringency or COVID-19 mortality and individual depressive symptoms. We defer discussion of potential explanations and implications of these findings to the conclusion.
 
@@ -380,12 +514,11 @@ In addition, the analytic sample is subject to selection and attrition concerns.
 
 An additional limitation is the potential unreliability of official COVID-19 data in China, as government involvement in data collection and reporting may create incentives to systematically underreport cases or deaths, introducing measurement error in key treatment variables.
 
-Future work would benefit from more temporally granular mental health data that span the full calendar year. Finer measurement would allow for tighter alignment between policy changes and psychological outcomes, and would enable better identification of cumulative and potentially lagged mental health effects of prolonged public health interventions.
+Future work would benefit from more temporally granular mental health data that span the full calendar year. Finer measurement would allow for tighter alignment between policy changes and psychological outcomes. We could also include economic impact data to control for confoundingness.
 
-## Future Work
+\singlespacing
 
-For future work, we also hope to explore the effect of COVID-19 on mental health outcomes through an economic lens, such as GDP or unemployment (we were unfortunately missing data of the needed granularity). Furthermore, since our research yielded the unintuitive result that stringency doesn’t explain mental health outcomes within waves, we would hope to explore which features do explain this variance
-
+\newpage
 
 # **Appendix A: Model Results (Required)**
 
@@ -393,27 +526,297 @@ For future work, we also hope to explore the effect of COVID-19 on mental health
 ## Model Call
 
 ```{r}
-# lmer(
-#   outcome ~ predictors + (1 | group),
-#   data = my_data
-# )
+per_capita_vars <- c(
+  "new_confirmed_per_capita",
+  "X3month_avg_new_confirmed_per_capita",
+  "new_deceased_per_capita",
+  "X3month_avg_new_deceased_per_capita",
+  "cumulative_confirmed_per_capita",
+  "X3month_avg_cumulative_confirmed_per_capita",
+  "cumulative_deceased_per_capita",
+  "X3month_avg_cumulative_deceased_per_capita"
+)
+
+# keep only those that exist in the data
+per_capita_vars <- intersect(per_capita_vars, names(cfps))
+
+cfps <- cfps %>%
+  mutate(
+    across(
+      all_of(per_capita_vars),
+      ~ . * 100000
+    )
+  )
+
+
+cfps <- cfps %>%
+  mutate(
+    pid   = factor(pid),
+    fid   = factor(fid),
+    cid   = factor(cid),
+    provcd = factor(provcd),
+    wave  = factor(wave),
+    
+    ## group mean centering time varying covariates (example choices)
+    age_c    = scale(age, center = TRUE, scale = FALSE)[, 1],
+    health_c = scale(health, center = TRUE, scale = FALSE)[, 1],
+    
+    ## Time-invariant-ish covariates as factors
+    gender    = factor(gender),
+    education = factor(education),
+    marital   = factor(marital),
+    urban     = factor(urban)
+  )
+
+## variables to zero-fill in pre-COVID waves
+pre_covid_zero_vars <- c(
+  "new_confirmed",
+  "X3month_avg_new_confirmed",
+  "new_deceased",
+  "X3month_avg_new_deceased",
+  "cumulative_confirmed",
+  "X3month_avg_cumulative_confirmed",
+  "cumulative_deceased",
+  "X3month_avg_cumulative_deceased",
+  "StringencyIndex_Average",
+  "X3month_avg_StringencyIndex_Average",
+  "new_confirmed_per_capita",
+  "X3month_avg_new_confirmed_per_capita",
+  "new_deceased_per_capita",
+  "X3month_avg_new_deceased_per_capita",
+  "cumulative_confirmed_per_capita",
+  "X3month_avg_cumulative_confirmed_per_capita",
+  "cumulative_deceased_per_capita",
+  "X3month_avg_cumulative_deceased_per_capita"
+)
+
+## keep only those that exist
+pre_covid_zero_vars <- intersect(pre_covid_zero_vars, names(cfps))
+
+## replace NA with 0 for wave 1 & 2 only
+cfps <- cfps %>%
+  mutate(
+    across(
+      all_of(pre_covid_zero_vars),
+      ~ ifelse(wave %in% c(1, 2) & is.na(.), 0, .)
+    )
+  )
+
+## restrict to rows with non-missing treatment and outcome -------
+cfps_model <- cfps %>%
+  filter(
+    !is.na(cesd20),
+    !is.na(X3month_avg_StringencyIndex_Average),
+    !is.na(X3month_avg_new_deceased_per_capita),
+    !is.na(wave)
+  )
+
+cfps_model <- cfps %>%
+  filter(
+    !is.na(cesd20),
+    !is.na(X3month_avg_StringencyIndex_Average),
+    !is.na(X3month_avg_new_deceased_per_capita),
+    !is.na(wave)
+  )
+```
+
+```{r, echo=T}
+model_full <- lmer(
+  cesd20 ~
+    X3month_avg_StringencyIndex_Average +
+    X3month_avg_new_deceased_per_capita +
+    wave +                  
+    age_c +
+    health_c +
+    urban +
+    gender +
+    education +
+    marital +
+    (1 | provcd) +          # province
+    (1 | cid) +             # community
+    (1 | fid) +             # family
+    (1 | pid),              # person
+  data = cfps_model,
+  REML = TRUE
+)
 ```
 
 ## Model Output
 
 ```{r}
-# library(arm)
-# display(model)
+cfps_model <- cfps_model %>%
+  mutate(
+    wave4 = ifelse(wave == 4, 1, 0)
+  )
+
+cfps_model <- cfps_model %>%
+  mutate(
+    post2020 = cyear >= 2020
+  ) %>%
+  group_by(provcd) %>%
+  mutate(
+    ## province mean of stringency using only post-2020 observations
+    stringency_mean_post2020 = ifelse(
+      post2020,
+      mean(X3month_avg_StringencyIndex_Average[post2020], na.rm = TRUE),
+      NA_real_
+    ),
+    ## within-province, post 2020 demeaned stringency
+    ## pre-\ 2020 stays exactly 0
+    stringency_wp_post2020 = case_when(
+      post2020 ~ X3month_avg_StringencyIndex_Average - stringency_mean_post2020,
+      !post2020 ~ 0
+    )
+  ) %>%
+  ungroup()
 ```
 
-
-
-# **References**
-
-```{r, results='asis', echo=FALSE}
-# Example:
-# cat("\\begin{thebibliography}{99}")
-# cat("\\bibitem{ref1} Author. Title. Journal.")
-# cat("\\end{thebibliography}")
+```{r, echo=TRUE}
+library(arm)
+display(model_full)
 ```
+
+# Appendix B: Extension Models Code
+
+```{r, echo=TRUE, results='hide'}
+## --------------------------------------------------
+## 2. interacting stringency with wave 4
+## --------------------------------------------------
+
+cfps_model <- cfps_model %>%
+  mutate(
+    wave4 = ifelse(wave == 4, 1, 0)
+  )
+
+model_int_wave4 <- lmer(
+  cesd20 ~
+    X3month_avg_StringencyIndex_Average +
+    X3month_avg_new_deceased_per_capita +
+    wave +  # still have wave FE
+    X3month_avg_StringencyIndex_Average:wave4 +
+    age_c +
+    health_c +
+    urban +
+    gender +
+    education +
+    marital +
+    (1 | provcd) +
+    (1 | cid) +
+    (1 | fid) +
+    (1 | pid),
+  data = cfps_model,
+  REML = TRUE
+)
+
+summary(model_int_wave4)
+
+## --------------------------------------------------
+## 3. removing wave fixed effects from baseline
+## --------------------------------------------------
+
+model_no_wave <- lmer(
+  cesd20 ~
+    X3month_avg_StringencyIndex_Average +
+    X3month_avg_new_deceased_per_capita +
+    age_c +
+    health_c +
+    urban +
+    gender +
+    education +
+    marital +
+    (1 | provcd) +
+    (1 | cid) +
+    (1 | fid) +
+    (1 | pid),
+  data = cfps_model,
+  REML = TRUE
+)
+
+summary(model_no_wave)
+
+## --------------------------------------------------
+## 4. within province stringency
+## --------------------------------------------------
+
+model_within_prov_post2020 <- lmer(
+  cesd20 ~
+    stringency_wp_post2020 +
+    X3month_avg_new_deceased_per_capita +
+    wave +              # you can drop this if you want
+    age_c +
+    health_c +
+    urban +
+    gender +
+    education +
+    marital +
+    (1 | provcd) +
+    (1 | cid) +
+    (1 | fid) +
+    (1 | pid),
+  data = cfps_model,
+  REML = TRUE
+)
+
+summary(model_within_prov_post2020)
+
+## --------------------------------------------------
+## 5. Random slope for stringency by province
+## --------------------------------------------------
+
+model_random_slope <- lmer(
+  cesd20 ~
+    X3month_avg_StringencyIndex_Average +
+    X3month_avg_new_deceased_per_capita +
+    wave +
+    age_c +
+    health_c +
+    urban +
+    gender +
+    education +
+    marital +
+    (1 + X3month_avg_StringencyIndex_Average | provcd) +  # random slope
+    (1 | cid) +
+    (1 | fid) +
+    (1 | pid),
+  data = cfps_model,
+  REML = TRUE
+)
+```
+
+# **Bibliography**
+
+Murong Xuecun. (2023, April 18). China’s ‘zero Covid’ policy was a mass imprisonment campaign. The Guardian. https://www.theguardian.com/commentisfree/2023/apr/18/china-zero-covid-policy-xi-jinping
+
+Yan, K., Jiang, S., Xia, L., Jin, T., Dai, A., Gu, C., & Li, A. (2025). China’s zero-COVID policy and psychological distress: a spatial quasi-experimental design. Journal of Social Policy, 54(3), 1029–1046. doi:10.1017/S0047279423000430
+
+Schifrin, N., & Cebrián Aranda, T. (2022, November 28). Thousands in China protest zero-COVID policy in largest demonstrations in decades. PBS NewsHour. https://www.pbs.org/newshour/show/thousands-in-china-protest-zero-covid-policy-in-largest-demonstrations-in-decades
+
+\begin{thebibliography}{9}
+
+\bibitem{cfps}
+Institute of Social Science Survey, Peking University.
+\textit{China Family Panel Studies (CFPS)}.
+2010--2022. \url{https://www.isss.pku.edu.cn/cfps/}.
+
+\bibitem{hale2021}
+Hale, T., Angrist, N., Goldszmidt, R., Kira, B., Petherick, A., Phillips, T., Webster, S.,
+Cameron-Blake, E., Hallas, L., Majumdar, S., and Tatlow, H. (2021).
+A global panel database of pandemic policies (Oxford COVID-19 Government Response Tracker).
+\textit{Nature Human Behaviour}, 5, 529--538.
+\href{https://doi.org/10.1038/s41562-021-01079-8}{doi:10.1038/s41562-021-01079-8}
+
+\bibitem{dong2020}
+Dong, E., Du, H., and Gardner, L. (2020).
+An interactive web-based dashboard to track COVID-19 in real time.
+\textit{The Lancet Infectious Diseases}.
+Data available from
+\url{https://github.com/CSSEGISandData/COVID-19}.
+
+\bibitem{radloff1977}
+Radloff, L. S. (1977).
+The CES-D scale: A self-report depression scale for research in the general population.
+\textit{Applied Psychological Measurement}, 1(3), 385--401.
+
+\end{thebibliography}
+
 
