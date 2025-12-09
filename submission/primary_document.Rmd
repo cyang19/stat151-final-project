@@ -23,7 +23,6 @@ knitr::opts_chunk$set(
 )
 ```
 
-
 # Introduction
 
 China’s Zero-COVID strategy relied on aggressive non-pharmaceutical interventions, including lockdowns, mass testing, mobility restrictions, and community-level quarantines that varied in intensity across provinces and over time. The policies imposed substantial and uneven constraints on daily activity, social interaction, and employment providing a natural setting to study how large-scale and persistent containment measures may have affected mental health.
@@ -33,7 +32,6 @@ Assessing the psychological consequences of Zero-COVID is complicated by the sim
 In this project, we combine longitudinal data from the China Family Panel Studies (CFPS) with province-level measures of COVID-19 policy stringency from the Oxford COVID-19 Government Response Tracker and COVID-19 mortality data. Depression is measured using the CESD-20 scale. Our primary research question is whether increases in policy stringency and COVID-19 deaths are associated with changes in depressive symptoms.
 
 We study this question using multilevel longitudinal models that exploit within-individual and across-province variation over time while accounting for the hierarchical structure of the CFPS sample. This approach allows us to estimate how changes in province policy stringency and pandemic intensity relate to changes in depression, net of persistent individual characteristics and common time trends.
----
 
 # Data
 
@@ -41,7 +39,7 @@ We study this question using multilevel longitudinal models that exploit within-
 
 Individual-level mental health and demographic data come from the China Family Panel Studies (CFPS), a nationally representative, biennial longitudinal survey administered by the Institute of Social Science Survey at Peking University. The CFPS tracks individuals, families, and communities across China and collects detailed information on health, economic conditions, education, and family structure.
 
-We use four survey waves: 2016, 2018, 2020, and 2022. Depression is measured using the CESD-20 scale, which captures the frequency of depressive symptoms over the past week. The longitudinal structure of the CFPS allows us to observe changes in depressive symptoms within the same individuals before and during the COVID-19 period.
+We use four survey waves: 2016, 2018, 2020, and 2022. After cleaning and merging with province-level pandemic data, the final analytical sample consists of 51,224 person-wave observations covering 12,806 individuals, 7,770 families, and 3,318 communities across 33 provinces. Depression is measured using the CESD-20 scale, which captures the frequency of depressive symptoms over the past week. The longitudinal structure of the CFPS allows us to observe changes in depressive symptoms within the same individuals before and during the COVID-19 period.
 
 \textbf{COVID-19 Mortality Data}
 

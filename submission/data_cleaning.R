@@ -8,15 +8,16 @@ library(tidyverse)
 ## --------------------------------------------------
 
 ## Loading all of the data
-data_2022 <- read_dta('join_data/ecfps2022person_202410.dta')
-data_2020 <- read_dta('join_data/cfps2020person_202306.dta')
-data_2018 <- read_sas('join_data/ecfps2018person_202012.sas7bdat')
-data_2016 <- read_dta('join_data/ecfps2016adult_201906.dta')
+data_2022 <- read_dta("join_data/ecfps2022person_202410.dta")
+data_2020 <- read_dta("join_data/cfps2020person_202306.dta")
+data_2018 <- read_sas("join_data/ecfps2018person_202012.sas7bdat")
+data_2016 <- read_dta("join_data/ecfps2016adult_201906.dta")
 
 # Create a list of shared people IDs
-inner <- inner_join(data_2022, data_2020, join_by('pid'=='pid')) %>%
-  inner_join(data_2018, join_by('pid'=='PID')) %>%
-  inner_join(data_2016, join_by('pid' == 'pid'))
+inner <- inner_join(data_2022, data_2020, join_by(pid == pid)) %>%
+  inner_join(data_2018, join_by(pid == PID)) %>%
+  inner_join(data_2016, join_by(pid == pid))
+
 shared_people <- inner$pid
 
 # Filter for only this data before binding rows
@@ -25,11 +26,51 @@ data_2020 <- filter(data_2020, pid %in% shared_people)
 data_2018 <- filter(data_2018, PID %in% shared_people)
 data_2016 <- filter(data_2016, pid %in% shared_people)
 
-# Preliminary cleaning to create wave as a cateogrical
+# Preliminary cleaning to create wave as a categorical
 data_2022$releaseversion <- as.character(data_2022$releaseversion)
 data_2020$releaseversion <- as.character(data_2020$releaseversion)
 data_2018$releaseversion <- as.character(data_2018$ReleaseVersion)
 data_2016$releaseversion <- as.character(data_2016$releaseversion)
+
+## --------------------------------------------------
+## Backward-impute education: use 2018 EDU_LAST for 2016
+## --------------------------------------------------
+
+# 1. Build a pid–EDU_LAST lookup from 2018
+#    (assumes the 2018 file has a column called EDU_LAST)
+edu_2018 <- data_2018 %>%
+  transmute(
+    pid = PID,
+    EDU_LAST_2018 = EDU_LAST
+  ) %>%
+  # make absolutely sure there is only one row per pid
+  group_by(pid) %>%
+  summarise(EDU_LAST_2018 = first(EDU_LAST_2018), .groups = "drop")
+
+# 2. Make sure 2016 has an EDU_LAST column
+if (!"EDU_LAST" %in% names(data_2016)) {
+  data_2016$EDU_LAST <- NA
+}
+
+# 3. Join and fill missing 2016 EDU_LAST with the 2018 value
+data_2016 <- data_2016 %>%
+  left_join(edu_2018, by = "pid") %>%
+  mutate(
+    EDU_LAST = ifelse(is.na(EDU_LAST), EDU_LAST_2018, EDU_LAST)
+  ) %>%
+  select(-EDU_LAST_2018)
+
+# (Optional sanity-check: ensure still 1 row per pid in 2016)
+stopifnot(!any(duplicated(data_2016$pid)))
+
+## --------------------------------------------------
+## Row stacking with dplyr to create NAs where new rows are introduced.
+## --------------------------------------------------
+d <- bind_rows(data_2022, data_2018, data_2016, data_2020)
+write.csv(d, "data/all_years_data_long.csv")
+
+
+
 
 # Row stacking with dplyr to create NAs where new rows are introduced.
 d <- bind_rows(data_2022, data_2018, data_2016, data_2020)
@@ -88,13 +129,11 @@ var_groups <- list(
   cesd8        = c("cesd8", "CESD8"),
   
   ## core covariates
-  age          = c("age", "AGE", "cfps_age"),
-  gender       = c("gender", "GENDER", "cfps_gender", "gender_pre"),
-  education    = c("edu_last", "EDU_LAST", "cfps_latest_edu",
-                   "cfps2016edu", "CFPS2018EDU", "cfps2022edu"),
-  urban        = c("urban22", "urban20", "urban16", "URBAN18"),
-  marital      = c("qea0", "QEA0", "marriage_last", "MARRIAGE_LAST",
-                   "marriage_last_update"),
+  age          = c("age", "AGE", "CFPS_AGE", "Age"),
+  gender       = c("gender", "GENDER", "CFPS_GENDER", "Gender"),
+  education    = c("EDU_LAST", "edu_last"),
+  urban        = c("urban22", "urban20", "urban16", "urban18","URBAN22", "URBAN20", "URBAN16", "URBAN18"),
+  marital      = c("qea0", "QEA0"),
   health       = c("qp201", "QP201"),
   party        = c("party", "PARTY"),
   hukou        = c("huk", "cfps_hk"),
@@ -206,29 +245,43 @@ cat("Covariate columns:\n")
 print(covar_cols)
 cat("\n")
 
-## helper function to flag -1 values
-is_minus1 <- function(x) {
-  out <- (x == -1) | (x == "-1")
-  out[is.na(out)] <- FALSE
-  out
+## helper function to flag bad covariate values: -1, -8, or NA
+is_bad_covar <- function(x) {
+  # handle numeric or character
+  is_na <- is.na(x)
+  is_m1 <- (x == -1) | (x == "-1")
+  is_m8 <- (x == -8) | (x == "-8")
+  is_m9 <- (x == -9) | (x == "-9")
+  
+  # replace NAs in comparisons with FALSE
+  is_m1[is.na(is_m1)] <- FALSE
+  is_m8[is.na(is_m8)] <- FALSE
+  is_m9[is.na(is_m9)] <- FALSE
+  
+  is_na | is_m1 | is_m8 | is_m9
 }
 
-## idenifying peopel with a -1 in any covariates
+## identifying people with -1, -8, or NA in any covariate
 if (length(covar_cols) == 0L) {
-  row_has_minus1 <- rep(FALSE, nrow(dat))
+  row_has_bad <- rep(FALSE, nrow(dat))
 } else {
-  minus_list <- lapply(dat[covar_cols], is_minus1)
-  minus_mat  <- do.call(cbind, minus_list)
-  row_has_minus1 <- apply(minus_mat, 1, any)
+  bad_list <- lapply(dat[covar_cols], is_bad_covar)
+  bad_mat  <- do.call(cbind, bad_list)
+  row_has_bad <- apply(bad_mat, 1, any)
 }
 
-bad_pids <- unique(dat$pid[row_has_minus1])
+bad_pids <- unique(dat$pid[row_has_bad])
 
-cat("Number of rows with -1 in at least one covariate:", sum(row_has_minus1), "\n")
-cat("Number of unique pids to drop:", length(bad_pids), "\n\n")
+cat("Number of rows with -1, -8, or NA in at least one covariate:",
+    sum(row_has_bad), "\n")
+cat("Number of unique pids to drop due to bad covariates:",
+    length(bad_pids), "\n\n")
 
-## Drop all rows for these pids with -1
+## Drop all rows for these pids
 dat_clean <- dat[!(dat$pid %in% bad_pids), ]
+
+cat("After dropping those pids:\n")
+cat("Rows:", nrow(dat_clean), "  Columns:", ncol(dat_clean), "\n\n")
 
 cat("After dropping those pids:\n")
 cat("Rows:", nrow(dat_clean), "  Columns:", ncol(dat_clean), "\n\n")
